@@ -1,7 +1,7 @@
 # Mennekes AMTRON Charge Control – Home Assistant Integration
 
-[![lint + test](https://img.shields.io/github/actions/workflow/status/YOUR-USERNAME/mennekes-amtron-charge-control/ci.yml?branch=main&label=lint%20%2B%20test)](https://github.com/YOUR-USERNAME/mennekes-amtron-charge-control/actions/workflows/ci.yml)
-[![hassfest](https://img.shields.io/github/actions/workflow/status/YOUR-USERNAME/mennekes-amtron-charge-control/hassfest.yaml?branch=main&label=hassfest)](https://github.com/YOUR-USERNAME/mennekes-amtron-charge-control/actions/workflows/hassfest.yaml)
+[![lint + test](https://img.shields.io/github/actions/workflow/status/TenOfNine/Mennekes-HA-Integration/ci.yml?branch=main&label=lint%20%2B%20test)](https://github.com/TenOfNine/Mennekes-HA-Integration/actions/workflows/ci.yml)
+[![hassfest](https://img.shields.io/github/actions/workflow/status/TenOfNine/Mennekes-HA-Integration/hassfest.yaml?branch=main&label=hassfest)](https://github.com/TenOfNine/Mennekes-HA-Integration/actions/workflows/hassfest.yaml)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Python](https://img.shields.io/badge/python-3.14-blue)
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
