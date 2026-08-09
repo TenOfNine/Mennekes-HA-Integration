@@ -24,7 +24,7 @@ pymodbus dependency.
   manufacturer's documented pause mechanism)
 - **Status**, **session energy**, **total (lifetime) energy**, **system errors**, and
   **firmware version** as additional sensors
-- All two configurable values (max. current, pause current) are changeable at runtime via
+- Both configurable values (max. current, pause current) are changeable at runtime via
   **Settings → Devices & Services → Mennekes AMTRON → Configure** — no file edits, no restart
 
 See [`custom_components/mennekes_amtron/`](custom_components/mennekes_amtron/) for the full
