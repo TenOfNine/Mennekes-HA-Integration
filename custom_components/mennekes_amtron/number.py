@@ -34,6 +34,7 @@ class AmtronCurrentLimitNumber(AmtronEntity, NumberEntity):
     """
 
     _attr_translation_key = "current_limit"
+    _unique_id_suffix = "current_limit"
     _attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
     _attr_native_step = 1
     _attr_native_min_value = 0
@@ -42,7 +43,6 @@ class AmtronCurrentLimitNumber(AmtronEntity, NumberEntity):
 
     def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
         super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_current_limit"
         self._attr_native_max_value = coordinator.max_current_a
 
     @property

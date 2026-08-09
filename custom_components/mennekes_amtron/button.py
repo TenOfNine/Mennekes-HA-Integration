@@ -34,11 +34,8 @@ class AmtronStartButton(AmtronEntity, ButtonEntity):
     """
 
     _attr_translation_key = "start_charging"
+    _unique_id_suffix = "start_charging"
     _attr_icon = "mdi:play-circle-outline"
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_start_charging"
 
     async def async_press(self) -> None:
         await self.coordinator.async_start_charging()
@@ -57,11 +54,8 @@ class AmtronPauseButton(AmtronEntity, ButtonEntity):
     """
 
     _attr_translation_key = "pause_charging"
+    _unique_id_suffix = "pause_charging"
     _attr_icon = "mdi:pause-circle-outline"
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_pause_charging"
 
     async def async_press(self) -> None:
         await self.coordinator.async_pause_charging()

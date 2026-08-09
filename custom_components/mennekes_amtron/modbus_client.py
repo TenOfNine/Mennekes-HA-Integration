@@ -122,19 +122,19 @@ class AmtronModbusClient:
             raise ModbusError(f"Unexpected function code 0x{resp_function_code:02X} in response")
         return remaining[1:]
 
-    async def read_input_registers(self, address: int, count: int) -> list[int]:
-        """Read `count` input registers (function code 0x04) starting at `address`."""
+    async def _read_registers(self, function_code: int, address: int, count: int) -> list[int]:
         payload = struct.pack(">HH", address, count)
-        data = await self._request(READ_INPUT_REGISTERS, payload)
+        data = await self._request(function_code, payload)
         byte_count = data[0]
         return list(struct.unpack(f">{byte_count // 2}H", data[1 : 1 + byte_count]))
 
+    async def read_input_registers(self, address: int, count: int) -> list[int]:
+        """Read `count` input registers (function code 0x04) starting at `address`."""
+        return await self._read_registers(READ_INPUT_REGISTERS, address, count)
+
     async def read_holding_registers(self, address: int, count: int) -> list[int]:
         """Read `count` holding registers (function code 0x03) starting at `address`."""
-        payload = struct.pack(">HH", address, count)
-        data = await self._request(READ_HOLDING_REGISTERS, payload)
-        byte_count = data[0]
-        return list(struct.unpack(f">{byte_count // 2}H", data[1 : 1 + byte_count]))
+        return await self._read_registers(READ_HOLDING_REGISTERS, address, count)
 
     async def write_register(self, address: int, value: int) -> None:
         """Write a single holding register (function code 0x06)."""

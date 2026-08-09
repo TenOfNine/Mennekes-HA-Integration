@@ -174,11 +174,12 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         def status_reg(address: int) -> int:
             return status_regs[address - STATUS_BLOCK_START]
 
-        error_bits = _decode_error_pair(status_reg(REG_ERROR_CODES_4[0]), status_reg(REG_ERROR_CODES_4[1]))
-        reserved_words = (
-            _decode_error_pair(status_reg(REG_ERROR_CODES_1[0]), status_reg(REG_ERROR_CODES_1[1])),
-            _decode_error_pair(status_reg(REG_ERROR_CODES_2[0]), status_reg(REG_ERROR_CODES_2[1])),
-            _decode_error_pair(status_reg(REG_ERROR_CODES_3[0]), status_reg(REG_ERROR_CODES_3[1])),
+        def error_pair(pair: tuple[int, int]) -> int:
+            return _decode_error_pair(status_reg(pair[0]), status_reg(pair[1]))
+
+        error_bits = error_pair(REG_ERROR_CODES_4)
+        reserved_words = tuple(
+            error_pair(pair) for pair in (REG_ERROR_CODES_1, REG_ERROR_CODES_2, REG_ERROR_CODES_3)
         )
         active_errors = [name for bit, name in ERROR_FLAGS.items() if error_bits & (1 << bit)]
 

@@ -33,14 +33,11 @@ class AmtronPowerSensor(AmtronEntity, SensorEntity):
     """Current charging power, in kW (requirement 1). Sum of L1+L2+L3."""
 
     _attr_translation_key = "charging_power"
+    _unique_id_suffix = "charging_power"
     _attr_device_class = SensorDeviceClass.POWER
     _attr_native_unit_of_measurement = UnitOfPower.KILO_WATT
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_suggested_display_precision = 2
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_charging_power"
 
     @property
     def native_value(self) -> float:
@@ -52,13 +49,10 @@ class AmtronStatusSensor(AmtronEntity, SensorEntity):
     """OCPP charge-point status (bonus, helpful for automations)."""
 
     _attr_translation_key = "status"
+    _unique_id_suffix = "status"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = [*CP_STATUS.values(), "unknown"]
     _attr_icon = "mdi:ev-station"
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_status"
 
     @property
     def native_value(self) -> str:
@@ -75,13 +69,10 @@ class AmtronSessionEnergySensor(AmtronEntity, SensorEntity):
     """
 
     _attr_translation_key = "session_energy"
+    _unique_id_suffix = "session_energy"
     _attr_device_class = SensorDeviceClass.ENERGY
     _attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_session_energy"
 
     @property
     def native_value(self) -> int:
@@ -98,13 +89,10 @@ class AmtronTotalEnergySensor(AmtronEntity, SensorEntity):
     """
 
     _attr_translation_key = "total_energy"
+    _unique_id_suffix = "total_energy"
     _attr_device_class = SensorDeviceClass.ENERGY
     _attr_native_unit_of_measurement = UnitOfEnergy.WATT_HOUR
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_total_energy"
 
     @property
     def native_value(self) -> int | None:
@@ -125,12 +113,9 @@ class AmtronErrorSensor(AmtronEntity, SensorEntity):
     """
 
     _attr_translation_key = "error"
+    _unique_id_suffix = "error"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:alert-circle-outline"
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_error"
 
     @property
     def native_value(self) -> str:
@@ -156,12 +141,9 @@ class AmtronFirmwareVersionSensor(AmtronEntity, SensorEntity):
     """ECU application firmware version (bonus, useful for support requests)."""
 
     _attr_translation_key = "firmware_version"
+    _unique_id_suffix = "firmware_version"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_icon = "mdi:chip"
-
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
-        super().__init__(coordinator, entry)
-        self._attr_unique_id = f"{entry.entry_id}_firmware_version"
 
     @property
     def native_value(self) -> str | None:
