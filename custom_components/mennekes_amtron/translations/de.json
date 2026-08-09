@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mennekes AMTRON Charge Control verbinden",
+        "description": "Modbus TCP muss auf der Wallbox bereits aktiviert sein (Menü Lastmanagement, als Operator eingeloggt; zusätzlich \"kostenloses Laden\" unter Authorisierung aktivieren, damit diese Integration Ladevorgänge starten kann - siehe README).",
+        "data": {
+          "host": "IP-Adresse oder Hostname",
+          "port": "Port",
+          "unit_id": "Modbus Unit-ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung fehlgeschlagen: {error_detail}",
+      "invalid_response": "Die Wallbox hat mit einem Modbus-Fehler geantwortet: {error_detail}",
+      "unknown": "Unerwarteter Fehler."
+    },
+    "abort": {
+      "already_configured": "Dieses Gerät ist bereits eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Mennekes AMTRON Einstellungen",
+        "description": "Diese Werte werden nicht automatisch von der Wallbox ausgelesen - bitte passend zu deiner Installation setzen.",
+        "data": {
+          "max_current_a": "Maximaler Ladestrom (A)",
+          "pause_current_a": "Von \"Ladevorgang pausieren\" geschriebener Wert (A)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "charging_power": {
+        "name": "Ladeleistung"
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "available": "Frei",
+          "occupied": "Belegt",
+          "reserved": "Reserviert",
+          "unavailable": "Nicht verfügbar",
+          "faulted": "Störung",
+          "preparing": "Bereitet vor",
+          "charging": "Lädt",
+          "suspended_evse": "Pausiert (Wallbox)",
+          "suspended_ev": "Pausiert (Fahrzeug)",
+          "finishing": "Wird beendet",
+          "unknown": "Unbekannt"
+        }
+      },
+      "session_energy": {
+        "name": "Energie (aktuelle Ladung)"
+      },
+      "total_energy": {
+        "name": "Gesamtenergie"
+      },
+      "error": {
+        "name": "Fehler"
+      },
+      "firmware_version": {
+        "name": "Firmware-Version"
+      }
+    },
+    "number": {
+      "current_limit": {
+        "name": "Ladestrom-Grenze"
+      }
+    },
+    "button": {
+      "start_charging": {
+        "name": "Ladevorgang starten"
+      },
+      "pause_charging": {
+        "name": "Ladevorgang pausieren"
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+[tool.ruff]
+# Home Assistant runs a single Python minor version at a time and moved to
+# 3.14 with the 2026.3 core release (home-assistant.io/blog/2026/03/04/release-20263).
+target-version = "py314"
+
+[tool.ruff.lint]
+# Pinned explicitly rather than left to ruff's default rule selection, which
+# has changed between ruff releases. Widen this list deliberately, never by
+# upgrading ruff and hoping.
+select = ["E4", "E7", "E9", "F"]

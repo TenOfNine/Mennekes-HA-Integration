@@ -1,0 +1,11 @@
+{
+  "domain": "mennekes_amtron",
+  "name": "Mennekes AMTRON Charge Control (ECU Modbus)",
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/your-username/mennekes_amtron",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "0.4.0"
+}

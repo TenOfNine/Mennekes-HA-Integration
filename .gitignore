@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# A real Home Assistant config directory some people symlink in for local
+# manual testing (custom_components/mennekes_amtron -> their real config).
+# Never something to commit - it's a whole personal HA install.
+config/
+*.storage/
+
+# Assistant configuration is a working-copy preference, not a repo artefact -
+# a committed copy becomes an instruction to everyone who clones this repo.
+CLAUDE.md
+.claude/settings.local.json

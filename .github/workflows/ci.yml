@@ -1,0 +1,34 @@
+# Gates lint and the "host" test tier: pure protocol/register-decoding logic
+# and the config/options flow, run against a fake Modbus TCP server and a
+# lightweight local stand-in for `homeassistant` (see tests/stubs/README.md
+# for why this doesn't install real Home Assistant core). A green tick here
+# means the Modbus framing, register math, and flow logic are correct - it
+# does not prove the integration loads cleanly inside a real Home Assistant
+# instance. hassfest.yaml covers manifest/translation schema validation.
+name: lint + test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      # Both versions are pinned. An unpinned ruff turns this gate red on a
+      # rule selection nobody chose - bump deliberately, with any resulting
+      # fixes in the same commit.
+      - run: pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Test
+        run: pytest tests/ -v

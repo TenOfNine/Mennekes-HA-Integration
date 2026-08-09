@@ -1,0 +1,83 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect Mennekes AMTRON Charge Control",
+        "description": "Modbus TCP must already be enabled on the wallbox (Load management menu, logged in as Operator; also enable \"free charging\" under Authorization so this integration can start sessions - see README).",
+        "data": {
+          "host": "IP address or hostname",
+          "port": "Port",
+          "unit_id": "Modbus unit ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect: {error_detail}",
+      "invalid_response": "The wallbox replied with a Modbus error: {error_detail}",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Mennekes AMTRON options",
+        "description": "These values are not read back from the wallbox automatically - set them to match your installation.",
+        "data": {
+          "max_current_a": "Maximum charging current (A)",
+          "pause_current_a": "Current written by \"Pause charging\" (A)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "charging_power": {
+        "name": "Charging power"
+      },
+      "status": {
+        "name": "Status",
+        "state": {
+          "available": "Available",
+          "occupied": "Occupied",
+          "reserved": "Reserved",
+          "unavailable": "Unavailable",
+          "faulted": "Faulted",
+          "preparing": "Preparing",
+          "charging": "Charging",
+          "suspended_evse": "Suspended (wallbox)",
+          "suspended_ev": "Suspended (vehicle)",
+          "finishing": "Finishing",
+          "unknown": "Unknown"
+        }
+      },
+      "session_energy": {
+        "name": "Session energy"
+      },
+      "total_energy": {
+        "name": "Total energy"
+      },
+      "error": {
+        "name": "Error"
+      },
+      "firmware_version": {
+        "name": "Firmware version"
+      }
+    },
+    "number": {
+      "current_limit": {
+        "name": "Charging current limit"
+      }
+    },
+    "button": {
+      "start_charging": {
+        "name": "Start charging"
+      },
+      "pause_charging": {
+        "name": "Pause charging"
+      }
+    }
+  }
+}

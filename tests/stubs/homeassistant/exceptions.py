@@ -1,0 +1,2 @@
+class HomeAssistantError(Exception):
+    pass
