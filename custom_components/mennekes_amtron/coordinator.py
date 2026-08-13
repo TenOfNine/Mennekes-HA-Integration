@@ -19,6 +19,7 @@ from .const import (
     DEFAULT_MAX_CURRENT_A,
     DEFAULT_PAUSE_CURRENT_A,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_START_CURRENT_A,
     DOMAIN,
     ERROR_FLAGS,
     FIRMWARE_BLOCK_COUNT,
@@ -144,6 +145,7 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         scan_interval: int = DEFAULT_SCAN_INTERVAL,
         max_current_a: int = DEFAULT_MAX_CURRENT_A,
         pause_current_a: int = DEFAULT_PAUSE_CURRENT_A,
+        start_current_a: int = DEFAULT_START_CURRENT_A,
     ) -> None:
         super().__init__(
             hass,
@@ -155,6 +157,7 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         self.client = client
         self.max_current_a = max_current_a
         self.pause_current_a = pause_current_a
+        self.start_current_a = start_current_a
         self._firmware_version: str | None = None  # cached; static for the device's lifetime
 
     async def _async_update_data(self) -> AmtronData:
@@ -212,7 +215,12 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         await self.async_set_current_limit(self.pause_current_a)
 
     async def async_start_charging(self, id_tag: str = DEFAULT_ID_TAG) -> None:
-        """Write a synthetic OCPP IdTag - equivalent to presenting an RFID card.
+        """Set the configured start current, then write a synthetic OCPP IdTag.
+
+        The current limit must be written first: it's what the ECU offers to
+        the EV, while the IdTag is only the authorization (equivalent to
+        presenting an RFID card). Writing the IdTag first would authorize a
+        session at whatever current limit happened to be set previously.
 
         Requires "Modbus Slave Allow Start/Stop Transaction" and "kostenloses
         Laden" (free charging) to be enabled on the wallbox, otherwise the tag
@@ -220,6 +228,7 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         """
         values = _encode_id_tag(id_tag)
         try:
+            await self.client.write_register(REG_HEMS_CURRENT_LIMIT, self.start_current_a)
             for offset, value in enumerate(values):
                 await self.client.write_register(REG_WRITE_IDTAG_START + offset, value)
         except (ModbusConnectionError, ModbusError) as err:

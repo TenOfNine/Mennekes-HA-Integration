@@ -76,6 +76,7 @@ def test_options_form_defaults_match_the_documented_defaults():
         defaults = {str(key): key.default() for key in form["data_schema"].schema if hasattr(key, "default")}
         assert defaults[c.CONF_MAX_CURRENT_A] == c.DEFAULT_MAX_CURRENT_A  # 16 A
         assert defaults[c.CONF_PAUSE_CURRENT_A] == c.DEFAULT_PAUSE_CURRENT_A  # 0 A
+        assert defaults[c.CONF_START_CURRENT_A] == c.DEFAULT_START_CURRENT_A  # 16 A
 
     run(body())
 
@@ -83,11 +84,30 @@ def test_options_form_defaults_match_the_documented_defaults():
 def test_options_form_prefills_from_existing_options():
     async def body():
         flow = AmtronOptionsFlow()
-        flow.config_entry = _StubEntryWithOptions({c.CONF_MAX_CURRENT_A: 20, c.CONF_PAUSE_CURRENT_A: 6})
+        flow.config_entry = _StubEntryWithOptions(
+            {c.CONF_MAX_CURRENT_A: 20, c.CONF_PAUSE_CURRENT_A: 6, c.CONF_START_CURRENT_A: 10}
+        )
         form = await flow.async_step_init()
         defaults = {str(key): key.default() for key in form["data_schema"].schema if hasattr(key, "default")}
         assert defaults[c.CONF_MAX_CURRENT_A] == 20
         assert defaults[c.CONF_PAUSE_CURRENT_A] == 6
+        assert defaults[c.CONF_START_CURRENT_A] == 10
+
+    run(body())
+
+
+def test_start_current_option_is_bounded_by_the_configured_max_current():
+    async def body():
+        flow = AmtronOptionsFlow()
+        flow.config_entry = _StubEntryWithOptions({c.CONF_MAX_CURRENT_A: 10})
+        form = await flow.async_step_init()
+        ranges = {
+            str(key): validator.validators[1]
+            for key, validator in form["data_schema"].schema.items()
+            if hasattr(validator, "validators")
+        }
+        assert ranges[c.CONF_START_CURRENT_A].min == c.MIN_CURRENT_A
+        assert ranges[c.CONF_START_CURRENT_A].max == 10  # the configured max, not ABS_MAX_CURRENT_A
 
     run(body())
 
@@ -96,8 +116,27 @@ def test_saving_options_creates_an_entry_with_the_submitted_data():
     async def body():
         flow = AmtronOptionsFlow()
         flow.config_entry = _StubEntryWithOptions()
-        result = await flow.async_step_init({c.CONF_MAX_CURRENT_A: 16, c.CONF_PAUSE_CURRENT_A: 6})
+        result = await flow.async_step_init(
+            {c.CONF_MAX_CURRENT_A: 16, c.CONF_PAUSE_CURRENT_A: 6, c.CONF_START_CURRENT_A: 10}
+        )
         assert result["type"] == "create_entry"
-        assert result["data"] == {c.CONF_MAX_CURRENT_A: 16, c.CONF_PAUSE_CURRENT_A: 6}
+        assert result["data"] == {
+            c.CONF_MAX_CURRENT_A: 16,
+            c.CONF_PAUSE_CURRENT_A: 6,
+            c.CONF_START_CURRENT_A: 10,
+        }
+
+    run(body())
+
+
+def test_saving_options_rejects_a_start_current_above_the_submitted_max_current():
+    async def body():
+        flow = AmtronOptionsFlow()
+        flow.config_entry = _StubEntryWithOptions()
+        result = await flow.async_step_init(
+            {c.CONF_MAX_CURRENT_A: 10, c.CONF_PAUSE_CURRENT_A: 0, c.CONF_START_CURRENT_A: 16}
+        )
+        assert result["type"] == "form"
+        assert result["errors"]["base"] == "start_current_above_max"
 
     run(body())

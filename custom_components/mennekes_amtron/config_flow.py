@@ -15,12 +15,15 @@ from .const import (
     ABS_MAX_CURRENT_A,
     CONF_MAX_CURRENT_A,
     CONF_PAUSE_CURRENT_A,
+    CONF_START_CURRENT_A,
     CONF_UNIT_ID,
     DEFAULT_MAX_CURRENT_A,
     DEFAULT_PAUSE_CURRENT_A,
     DEFAULT_PORT,
+    DEFAULT_START_CURRENT_A,
     DEFAULT_UNIT_ID,
     DOMAIN,
+    MIN_CURRENT_A,
     STATUS_BLOCK_COUNT,
     STATUS_BLOCK_START,
 )
@@ -112,21 +115,34 @@ class AmtronOptionsFlow(OptionsFlow):
     """
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Manage the options: max. charging current, and the pause current."""
-        if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
-
+        """Manage the options: max. charging current, pause current, and start current."""
         current_options = self.config_entry.options
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            # The schema below bounds start_current_a by the *previously
+            # saved* max_current_a (its Range is fixed at render time), so a
+            # submission that lowers max_current_a and start_current_a
+            # together needs this explicit cross-field check too.
+            if user_input[CONF_START_CURRENT_A] > user_input[CONF_MAX_CURRENT_A]:
+                errors["base"] = "start_current_above_max"
+            else:
+                return self.async_create_entry(title="", data=user_input)
+
+        configured_max = current_options.get(CONF_MAX_CURRENT_A, DEFAULT_MAX_CURRENT_A)
         options_schema = vol.Schema(
             {
                 vol.Required(
                     CONF_MAX_CURRENT_A,
-                    default=current_options.get(CONF_MAX_CURRENT_A, DEFAULT_MAX_CURRENT_A),
-                ): vol.All(vol.Coerce(int), vol.Range(min=6, max=ABS_MAX_CURRENT_A)),
+                    default=configured_max,
+                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_CURRENT_A, max=ABS_MAX_CURRENT_A)),
                 vol.Required(
                     CONF_PAUSE_CURRENT_A,
                     default=current_options.get(CONF_PAUSE_CURRENT_A, DEFAULT_PAUSE_CURRENT_A),
                 ): vol.All(vol.Coerce(int), vol.Range(min=0, max=ABS_MAX_CURRENT_A)),
+                vol.Required(
+                    CONF_START_CURRENT_A,
+                    default=current_options.get(CONF_START_CURRENT_A, DEFAULT_START_CURRENT_A),
+                ): vol.All(vol.Coerce(int), vol.Range(min=MIN_CURRENT_A, max=configured_max)),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=options_schema)
+        return self.async_show_form(step_id="init", data_schema=options_schema, errors=errors)

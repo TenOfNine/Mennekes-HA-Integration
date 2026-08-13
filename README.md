@@ -19,13 +19,15 @@ pymodbus dependency.
 - **Charging power** (kW) — live, from the wallbox's built-in energy meter
 - **Charging current limit** (A) — adjustable, with a configurable maximum matching your
   supply circuit's fusing
-- **Start charging** — writes a synthetic OCPP IdTag (same effect as tapping an RFID card)
+- **Start charging** — sets a configurable "start current" (16 A by default), then writes a
+  synthetic OCPP IdTag (same effect as tapping an RFID card)
 - **Pause charging** — writes a configurable "pause current" (0 A by default, per the
   manufacturer's documented pause mechanism)
 - **Status**, **session energy**, **total (lifetime) energy**, **system errors**, and
   **firmware version** as additional sensors
-- Both configurable values (max. current, pause current) are changeable at runtime via
-  **Settings → Devices & Services → Mennekes AMTRON → Configure** — no file edits, no restart
+- All three configurable values (max. current, start current, pause current) are changeable at
+  runtime via **Settings → Devices & Services → Mennekes AMTRON → Configure** — no file edits,
+  no restart. The start current is bounded between 6 A and the configured maximum current.
 
 See [`custom_components/mennekes_amtron/`](custom_components/mennekes_amtron/) for the full
 entity list and register-level detail in code comments.

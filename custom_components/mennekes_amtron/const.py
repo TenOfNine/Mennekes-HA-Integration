@@ -29,6 +29,7 @@ DOMAIN = "mennekes_amtron"
 CONF_UNIT_ID = "unit_id"
 CONF_MAX_CURRENT_A = "max_current_a"
 CONF_PAUSE_CURRENT_A = "pause_current_a"
+CONF_START_CURRENT_A = "start_current_a"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT_ID = 255  # empirically confirmed by installers; spec allows 1-255
@@ -44,6 +45,12 @@ MODEL = "AMTRON Charge Control (ECU)"
 DEFAULT_MAX_CURRENT_A = 16  # adjust to your supply circuit's actual fusing
 DEFAULT_PAUSE_CURRENT_A = 0  # value written by the "Pause" button; 0 = spec default
 MIN_CURRENT_A = 6
+# Value written by the "Start charging" button before it authorizes the
+# session (see AmtronCoordinator.async_start_charging). Defaults to the
+# configured max, i.e. "start at full available power" unless overridden.
+# The options flow keeps this between MIN_CURRENT_A and the configured
+# CONF_MAX_CURRENT_A, never the ABS_MAX_CURRENT_A hard ceiling below.
+DEFAULT_START_CURRENT_A = DEFAULT_MAX_CURRENT_A
 # Hard ceiling for both options above - the device itself does not accept
 # more than this (32 A / 3-phase Type 2, per the general HEMS_CURRENT_LIMIT
 # documentation), regardless of what the user configures.

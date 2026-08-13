@@ -27,9 +27,13 @@
         "description": "These values are not read back from the wallbox automatically - set them to match your installation.",
         "data": {
           "max_current_a": "Maximum charging current (A)",
-          "pause_current_a": "Current written by \"Pause charging\" (A)"
+          "pause_current_a": "Current written by \"Pause charging\" (A)",
+          "start_current_a": "Current written by \"Start charging\" (A)"
         }
       }
+    },
+    "error": {
+      "start_current_above_max": "The start current cannot be higher than the maximum charging current."
     }
   },
   "entity": {

@@ -8,10 +8,12 @@ from homeassistant.core import HomeAssistant
 from .const import (
     CONF_MAX_CURRENT_A,
     CONF_PAUSE_CURRENT_A,
+    CONF_START_CURRENT_A,
     CONF_UNIT_ID,
     DEFAULT_MAX_CURRENT_A,
     DEFAULT_PAUSE_CURRENT_A,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_START_CURRENT_A,
 )
 from .coordinator import AmtronCoordinator
 from .modbus_client import AmtronModbusClient
@@ -33,6 +35,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         DEFAULT_SCAN_INTERVAL,
         max_current_a=entry.options.get(CONF_MAX_CURRENT_A, DEFAULT_MAX_CURRENT_A),
         pause_current_a=entry.options.get(CONF_PAUSE_CURRENT_A, DEFAULT_PAUSE_CURRENT_A),
+        start_current_a=entry.options.get(CONF_START_CURRENT_A, DEFAULT_START_CURRENT_A),
     )
 
     # Raises ConfigEntryNotReady on failure, which makes HA retry setup

@@ -24,11 +24,13 @@ async def async_setup_entry(
 
 
 class AmtronStartButton(AmtronEntity, ButtonEntity):
-    """Starts charging (requirement 3) by writing a synthetic OCPP IdTag.
+    """Starts charging (requirement 3) at the configured start current.
 
-    This has the same effect as presenting an RFID card at the reader. It
-    only works if "Modbus Slave Allow Start/Stop Transaction" AND
-    "kostenloses Laden" (free charging) are both enabled on the wallbox -
+    Writes the "Startladestrom" option (Settings -> Devices & Services ->
+    Mennekes AMTRON -> Configure) to the current-limit register, then writes
+    a synthetic OCPP IdTag - the same effect as presenting an RFID card at
+    the reader. It only works if "Modbus Slave Allow Start/Stop Transaction"
+    AND "kostenloses Laden" (free charging) are both enabled on the wallbox -
     see README.md. Since your car is permanently plugged in, no further
     action should be needed for a session to actually begin once authorized.
     """
