@@ -32,6 +32,31 @@ pymodbus dependency.
 See [`custom_components/mennekes_amtron/`](custom_components/mennekes_amtron/) for the full
 entity list and register-level detail in code comments.
 
+## Screenshots
+
+The device page in Home Assistant, showing every entity the integration provides (values are
+from a live demo session):
+
+![Device page](screenshots/device_page_en.png)
+
+The **Configure** dialog (Settings → Devices & Services → Mennekes AMTRON → Configure), where
+the three writable currents are set:
+
+![Configure options](screenshots/configure_options_en.png)
+
+The charging-current-limit entity's own dialog, with its history graph:
+
+![Charging current limit entity](screenshots/entity_current_limit_en.png)
+
+<details>
+<summary>Same screenshots in German (Home Assistant UI set to Deutsch)</summary>
+
+![Geräteseite](screenshots/device_page_de.png)
+![Konfigurationsdialog](screenshots/configure_options_de.png)
+![Entität Ladestrom-Grenze](screenshots/entity_current_limit_de.png)
+
+</details>
+
 ## Why no pymodbus?
 
 This integration ships a minimal, dependency-free Modbus TCP client
