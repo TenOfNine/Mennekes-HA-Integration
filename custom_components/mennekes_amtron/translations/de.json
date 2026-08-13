@@ -27,9 +27,13 @@
         "description": "Diese Werte werden nicht automatisch von der Wallbox ausgelesen - bitte passend zu deiner Installation setzen.",
         "data": {
           "max_current_a": "Maximaler Ladestrom (A)",
-          "pause_current_a": "Von \"Ladevorgang pausieren\" geschriebener Wert (A)"
+          "pause_current_a": "Von \"Ladevorgang pausieren\" geschriebener Wert (A)",
+          "start_current_a": "Von \"Ladevorgang starten\" geschriebener Wert (A)"
         }
       }
+    },
+    "error": {
+      "start_current_above_max": "Der Startladestrom darf nicht höher als der maximale Ladestrom sein."
     }
   },
   "entity": {

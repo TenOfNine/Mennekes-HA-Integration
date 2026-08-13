@@ -197,3 +197,29 @@ def test_start_charging_writes_all_ten_idtag_registers():
             assert raw == b"HOMEASSISTANT".rjust(20)
 
     run(body())
+
+
+def test_start_charging_sets_the_configured_start_current_before_authorizing():
+    async def body():
+        registers = _default_registers()
+        registers[c.REG_HEMS_CURRENT_LIMIT] = 0  # e.g. left paused
+        async with fake_modbus_server(registers) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client, start_current_a=10)
+            await coordinator.async_start_charging("HOMEASSISTANT")
+            assert registers[c.REG_HEMS_CURRENT_LIMIT] == 10
+
+    run(body())
+
+
+def test_start_charging_defaults_the_start_current_to_default_start_current_a():
+    async def body():
+        registers = _default_registers()
+        registers[c.REG_HEMS_CURRENT_LIMIT] = 0
+        async with fake_modbus_server(registers) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client)
+            await coordinator.async_start_charging("HOMEASSISTANT")
+            assert registers[c.REG_HEMS_CURRENT_LIMIT] == c.DEFAULT_START_CURRENT_A
+
+    run(body())
