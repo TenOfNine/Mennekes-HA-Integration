@@ -11,6 +11,7 @@ import mennekes_amtron.const as c
 from fake_modbus_server import fake_modbus_server
 from mennekes_amtron.coordinator import (
     AmtronCoordinator,
+    _clamp_power_limit_w,
     _decode_ascii32,
     _decode_error_pair,
     _decode_power_w,
@@ -221,5 +222,81 @@ def test_start_charging_defaults_the_start_current_to_default_start_current_a():
             coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client)
             await coordinator.async_start_charging("HOMEASSISTANT")
             assert registers[c.REG_HEMS_CURRENT_LIMIT] == c.DEFAULT_START_CURRENT_A
+
+    run(body())
+
+
+# --- _clamp_power_limit_w: phase-switching value conversion (register 1002) ---
+
+
+def test_clamp_power_limit_treats_zero_and_negative_as_pause():
+    assert _clamp_power_limit_w(0, c.PHASE_MODE_AUTO, 16) == 0
+    assert _clamp_power_limit_w(-100, c.PHASE_MODE_AUTO, 16) == 0
+
+
+def test_clamp_power_limit_below_1phase_minimum_becomes_zero():
+    # 1000 W is below MIN_POWER_1PHASE_W (1380 W = 6 A * 230 V) in both modes.
+    assert _clamp_power_limit_w(1000, c.PHASE_MODE_AUTO, 16) == 0
+    assert _clamp_power_limit_w(1000, c.PHASE_MODE_SINGLE_PHASE, 16) == 0
+
+
+def test_clamp_power_limit_single_phase_mode_never_exceeds_the_1phase_max():
+    # max_current_a=16 -> 1-phase ceiling is 16 * 230 = 3680 W, even for a
+    # request that would otherwise fall in the 3-phase range.
+    assert _clamp_power_limit_w(5000, c.PHASE_MODE_SINGLE_PHASE, 16) == 16 * c.NOMINAL_PHASE_VOLTAGE_V
+    assert _clamp_power_limit_w(1380, c.PHASE_MODE_SINGLE_PHASE, 16) == 1380
+
+
+def test_clamp_power_limit_auto_mode_uses_1phase_range_below_the_3phase_threshold():
+    assert _clamp_power_limit_w(1380, c.PHASE_MODE_AUTO, 16) == 1380
+    # 4000 W < MIN_POWER_3PHASE_W (4140 W) -> still 1-phase, clamped to the
+    # 1-phase max for a 16 A circuit (3680 W).
+    assert _clamp_power_limit_w(4000, c.PHASE_MODE_AUTO, 16) == 16 * c.NOMINAL_PHASE_VOLTAGE_V
+
+
+def test_clamp_power_limit_auto_mode_uses_3phase_range_at_or_above_the_threshold():
+    assert _clamp_power_limit_w(4140, c.PHASE_MODE_AUTO, 16) == 4140
+    assert _clamp_power_limit_w(50_000, c.PHASE_MODE_AUTO, 16) == 16 * 3 * c.NOMINAL_PHASE_VOLTAGE_V
+
+
+# --- AmtronCoordinator + HEMS_POWER_LIMIT, against a fake server ---
+
+
+def test_coordinator_polls_power_limit_only_when_phase_mode_is_not_disabled():
+    async def body():
+        registers = _default_registers()
+        registers[c.REG_HEMS_POWER_LIMIT] = 4140
+        async with fake_modbus_server(registers) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client, phase_mode=c.PHASE_MODE_AUTO)
+            data = await coordinator._async_update_data()
+            assert data.power_limit_w == 4140
+
+    run(body())
+
+
+def test_coordinator_leaves_power_limit_none_when_phase_mode_is_disabled():
+    async def body():
+        registers = _default_registers()  # deliberately no REG_HEMS_POWER_LIMIT entry
+        async with fake_modbus_server(registers) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client)  # default phase_mode
+            data = await coordinator._async_update_data()
+            assert data.power_limit_w is None
+
+    run(body())
+
+
+def test_async_set_power_limit_writes_the_clamped_value():
+    async def body():
+        registers = _default_registers()
+        registers[c.REG_HEMS_POWER_LIMIT] = 0
+        async with fake_modbus_server(registers) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(
+                _StubHass(), _StubEntry(), client, phase_mode=c.PHASE_MODE_AUTO, max_current_a=16
+            )
+            await coordinator.async_set_power_limit(4140)
+            assert registers[c.REG_HEMS_POWER_LIMIT] == 4140
 
     run(body())

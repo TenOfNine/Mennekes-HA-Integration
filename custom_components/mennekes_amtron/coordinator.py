@@ -18,6 +18,7 @@ from .const import (
     DEFAULT_ID_TAG,
     DEFAULT_MAX_CURRENT_A,
     DEFAULT_PAUSE_CURRENT_A,
+    DEFAULT_PHASE_MODE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_START_CURRENT_A,
     DOMAIN,
@@ -27,12 +28,18 @@ from .const import (
     METER_BLOCK_COUNT,
     METER_BLOCK_START,
     METER_NOT_PRESENT,
+    MIN_POWER_1PHASE_W,
+    MIN_POWER_3PHASE_W,
+    NOMINAL_PHASE_VOLTAGE_V,
+    PHASE_MODE_DISABLED,
+    PHASE_MODE_SINGLE_PHASE,
     REG_CHARGED_ENERGY,
     REG_ERROR_CODES_1,
     REG_ERROR_CODES_2,
     REG_ERROR_CODES_3,
     REG_ERROR_CODES_4,
     REG_HEMS_CURRENT_LIMIT,
+    REG_HEMS_POWER_LIMIT,
     REG_METER_ENERGY_L1,
     REG_METER_POWER_L1,
     REG_METER_POWER_L2,
@@ -118,6 +125,35 @@ def _decode_power_w(regs: list[int], block_start: int) -> int:
     return total
 
 
+def _clamp_power_limit_w(requested_w: int, phase_mode: str, max_current_a: int) -> int:
+    """Convert a desired charging power (W) into the value to write to
+    HEMS_POWER_LIMIT (register 1002), given the configured phase mode.
+
+    0 always means "paused". Below MIN_POWER_1PHASE_W (6 A on one phase)
+    there's nothing valid to offer, so the result is 0 rather than a current
+    below the IEC 61851 minimum. In PHASE_MODE_SINGLE_PHASE the result never
+    exceeds the 1-phase max (max_current_a on one phase) - 3-phase power
+    levels are clamped down, not rejected. In PHASE_MODE_AUTO, requests at or
+    above MIN_POWER_3PHASE_W (6 A on three phases) use the 3-phase range
+    instead; the wallbox itself decides how many phases that corresponds to
+    based on which range the value falls in (see const.py).
+    """
+    if requested_w <= 0:
+        return 0
+    max_1phase_w = max_current_a * NOMINAL_PHASE_VOLTAGE_V
+    if phase_mode == PHASE_MODE_SINGLE_PHASE:
+        if requested_w < MIN_POWER_1PHASE_W:
+            return 0
+        return min(requested_w, max_1phase_w)
+    # PHASE_MODE_AUTO
+    if requested_w < MIN_POWER_3PHASE_W:
+        if requested_w < MIN_POWER_1PHASE_W:
+            return 0
+        return min(requested_w, max_1phase_w)
+    max_3phase_w = max_current_a * 3 * NOMINAL_PHASE_VOLTAGE_V
+    return min(requested_w, max_3phase_w)
+
+
 @dataclass
 class AmtronData:
     """A single decoded snapshot of the wallbox's state."""
@@ -131,6 +167,7 @@ class AmtronData:
     total_energy_wh: int | None = 0
     signaled_current_a: int = 0
     current_limit_a: int = 0
+    power_limit_w: int | None = None  # only polled when phase_mode != PHASE_MODE_DISABLED
     firmware_version: str | None = None
 
 
@@ -146,6 +183,7 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         max_current_a: int = DEFAULT_MAX_CURRENT_A,
         pause_current_a: int = DEFAULT_PAUSE_CURRENT_A,
         start_current_a: int = DEFAULT_START_CURRENT_A,
+        phase_mode: str = DEFAULT_PHASE_MODE,
     ) -> None:
         super().__init__(
             hass,
@@ -158,6 +196,7 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         self.max_current_a = max_current_a
         self.pause_current_a = pause_current_a
         self.start_current_a = start_current_a
+        self.phase_mode = phase_mode
         self._firmware_version: str | None = None  # cached; static for the device's lifetime
 
     async def _async_update_data(self) -> AmtronData:
@@ -166,6 +205,11 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
             meter_regs = await self.client.read_holding_registers(METER_BLOCK_START, METER_BLOCK_COUNT)
             charge_regs = await self.client.read_holding_registers(CHARGE_BLOCK_START, CHARGE_BLOCK_COUNT)
             limit_regs = await self.client.read_holding_registers(REG_HEMS_CURRENT_LIMIT, 1)
+            power_limit_regs = (
+                await self.client.read_holding_registers(REG_HEMS_POWER_LIMIT, 1)
+                if self.phase_mode != PHASE_MODE_DISABLED
+                else None
+            )
             if self._firmware_version is None:
                 # Read once and cache: this never changes without a reboot,
                 # which would interrupt polling anyway on the next cycle.
@@ -199,6 +243,7 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
             total_energy_wh=None if total_energy == METER_NOT_PRESENT else total_energy,
             signaled_current_a=charge_regs[REG_SIGNALED_CURRENT - CHARGE_BLOCK_START],
             current_limit_a=limit_regs[0],
+            power_limit_w=power_limit_regs[0] if power_limit_regs is not None else None,
             firmware_version=self._firmware_version,
         )
 
@@ -208,6 +253,19 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
             await self.client.write_register(REG_HEMS_CURRENT_LIMIT, amps)
         except (ModbusConnectionError, ModbusError) as err:
             raise HomeAssistantError(f"Could not set charging current: {err}") from err
+        await self.async_request_refresh()
+
+    async def async_set_power_limit(self, watts: int) -> None:
+        """Write a new HEMS power limit (Watts) - phase-switching control.
+
+        Only meaningful when phase_mode is not PHASE_MODE_DISABLED; see
+        AmtronPowerLimitNumber (number.py) and _clamp_power_limit_w above.
+        """
+        value = _clamp_power_limit_w(watts, self.phase_mode, self.max_current_a)
+        try:
+            await self.client.write_register(REG_HEMS_POWER_LIMIT, value)
+        except (ModbusConnectionError, ModbusError) as err:
+            raise HomeAssistantError(f"Could not set charging power: {err}") from err
         await self.async_request_refresh()
 
     async def async_pause_charging(self) -> None:
