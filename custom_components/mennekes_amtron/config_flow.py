@@ -10,20 +10,26 @@ from homeassistant.config_entries import ConfigEntry, ConfigFlow, ConfigFlowResu
 from homeassistant.const import CONF_HOST, CONF_PORT
 from homeassistant.core import callback
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import selector
 
 from .const import (
     ABS_MAX_CURRENT_A,
     CONF_MAX_CURRENT_A,
     CONF_PAUSE_CURRENT_A,
+    CONF_PHASE_MODE,
     CONF_START_CURRENT_A,
     CONF_UNIT_ID,
     DEFAULT_MAX_CURRENT_A,
     DEFAULT_PAUSE_CURRENT_A,
+    DEFAULT_PHASE_MODE,
     DEFAULT_PORT,
     DEFAULT_START_CURRENT_A,
     DEFAULT_UNIT_ID,
     DOMAIN,
     MIN_CURRENT_A,
+    PHASE_MODE_AUTO,
+    PHASE_MODE_DISABLED,
+    PHASE_MODE_SINGLE_PHASE,
     STATUS_BLOCK_COUNT,
     STATUS_BLOCK_START,
 )
@@ -115,7 +121,7 @@ class AmtronOptionsFlow(OptionsFlow):
     """
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Manage the options: max. charging current, pause current, and start current."""
+        """Manage the options: max/pause/start current, and the phase-switching mode."""
         current_options = self.config_entry.options
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -143,6 +149,16 @@ class AmtronOptionsFlow(OptionsFlow):
                     CONF_START_CURRENT_A,
                     default=current_options.get(CONF_START_CURRENT_A, DEFAULT_START_CURRENT_A),
                 ): vol.All(vol.Coerce(int), vol.Range(min=MIN_CURRENT_A, max=configured_max)),
+                vol.Required(
+                    CONF_PHASE_MODE,
+                    default=current_options.get(CONF_PHASE_MODE, DEFAULT_PHASE_MODE),
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=[PHASE_MODE_DISABLED, PHASE_MODE_SINGLE_PHASE, PHASE_MODE_AUTO],
+                        translation_key=CONF_PHASE_MODE,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                ),
             }
         )
         return self.async_show_form(step_id="init", data_schema=options_schema, errors=errors)

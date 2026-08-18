@@ -7,6 +7,8 @@ from __future__ import annotations
 import asyncio
 
 import mennekes_amtron.const as c
+import pytest
+import voluptuous as vol
 from fake_modbus_server import fake_modbus_server
 from homeassistant.const import CONF_HOST, CONF_PORT
 from mennekes_amtron.config_flow import AmtronConfigFlow, AmtronOptionsFlow
@@ -77,6 +79,7 @@ def test_options_form_defaults_match_the_documented_defaults():
         assert defaults[c.CONF_MAX_CURRENT_A] == c.DEFAULT_MAX_CURRENT_A  # 16 A
         assert defaults[c.CONF_PAUSE_CURRENT_A] == c.DEFAULT_PAUSE_CURRENT_A  # 0 A
         assert defaults[c.CONF_START_CURRENT_A] == c.DEFAULT_START_CURRENT_A  # 16 A
+        assert defaults[c.CONF_PHASE_MODE] == c.DEFAULT_PHASE_MODE  # "disabled"
 
     run(body())
 
@@ -85,13 +88,39 @@ def test_options_form_prefills_from_existing_options():
     async def body():
         flow = AmtronOptionsFlow()
         flow.config_entry = _StubEntryWithOptions(
-            {c.CONF_MAX_CURRENT_A: 20, c.CONF_PAUSE_CURRENT_A: 6, c.CONF_START_CURRENT_A: 10}
+            {
+                c.CONF_MAX_CURRENT_A: 20,
+                c.CONF_PAUSE_CURRENT_A: 6,
+                c.CONF_START_CURRENT_A: 10,
+                c.CONF_PHASE_MODE: c.PHASE_MODE_AUTO,
+            }
         )
         form = await flow.async_step_init()
         defaults = {str(key): key.default() for key in form["data_schema"].schema if hasattr(key, "default")}
         assert defaults[c.CONF_MAX_CURRENT_A] == 20
         assert defaults[c.CONF_PAUSE_CURRENT_A] == 6
         assert defaults[c.CONF_START_CURRENT_A] == 10
+        assert defaults[c.CONF_PHASE_MODE] == c.PHASE_MODE_AUTO
+
+    run(body())
+
+
+def test_phase_mode_selector_offers_the_three_documented_modes():
+    async def body():
+        flow = AmtronOptionsFlow()
+        flow.config_entry = _StubEntryWithOptions()
+        form = await flow.async_step_init()
+        selectors = {str(key): validator for key, validator in form["data_schema"].schema.items()}
+        phase_mode_selector = selectors[c.CONF_PHASE_MODE]
+        assert phase_mode_selector.config.options == [
+            c.PHASE_MODE_DISABLED,
+            c.PHASE_MODE_SINGLE_PHASE,
+            c.PHASE_MODE_AUTO,
+        ]
+        # Also acts as the field's voluptuous validator: rejects anything else.
+        assert phase_mode_selector(c.PHASE_MODE_AUTO) == c.PHASE_MODE_AUTO
+        with pytest.raises(vol.Invalid):
+            phase_mode_selector("not_a_real_mode")
 
     run(body())
 
@@ -117,13 +146,19 @@ def test_saving_options_creates_an_entry_with_the_submitted_data():
         flow = AmtronOptionsFlow()
         flow.config_entry = _StubEntryWithOptions()
         result = await flow.async_step_init(
-            {c.CONF_MAX_CURRENT_A: 16, c.CONF_PAUSE_CURRENT_A: 6, c.CONF_START_CURRENT_A: 10}
+            {
+                c.CONF_MAX_CURRENT_A: 16,
+                c.CONF_PAUSE_CURRENT_A: 6,
+                c.CONF_START_CURRENT_A: 10,
+                c.CONF_PHASE_MODE: c.PHASE_MODE_SINGLE_PHASE,
+            }
         )
         assert result["type"] == "create_entry"
         assert result["data"] == {
             c.CONF_MAX_CURRENT_A: 16,
             c.CONF_PAUSE_CURRENT_A: 6,
             c.CONF_START_CURRENT_A: 10,
+            c.CONF_PHASE_MODE: c.PHASE_MODE_SINGLE_PHASE,
         }
 
     run(body())
@@ -134,7 +169,12 @@ def test_saving_options_rejects_a_start_current_above_the_submitted_max_current(
         flow = AmtronOptionsFlow()
         flow.config_entry = _StubEntryWithOptions()
         result = await flow.async_step_init(
-            {c.CONF_MAX_CURRENT_A: 10, c.CONF_PAUSE_CURRENT_A: 0, c.CONF_START_CURRENT_A: 16}
+            {
+                c.CONF_MAX_CURRENT_A: 10,
+                c.CONF_PAUSE_CURRENT_A: 0,
+                c.CONF_START_CURRENT_A: 16,
+                c.CONF_PHASE_MODE: c.PHASE_MODE_DISABLED,
+            }
         )
         assert result["type"] == "form"
         assert result["errors"]["base"] == "start_current_above_max"

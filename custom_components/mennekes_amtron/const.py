@@ -30,6 +30,7 @@ CONF_UNIT_ID = "unit_id"
 CONF_MAX_CURRENT_A = "max_current_a"
 CONF_PAUSE_CURRENT_A = "pause_current_a"
 CONF_START_CURRENT_A = "start_current_a"
+CONF_PHASE_MODE = "phase_mode"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT_ID = 255  # empirically confirmed by installers; spec allows 1-255
@@ -55,6 +56,35 @@ DEFAULT_START_CURRENT_A = DEFAULT_MAX_CURRENT_A
 # more than this (32 A / 3-phase Type 2, per the general HEMS_CURRENT_LIMIT
 # documentation), regardless of what the user configures.
 ABS_MAX_CURRENT_A = 32
+
+# --- Phase switching (HEMS_POWER_LIMIT, register 1002) -------------------
+# Not (yet) directly confirmed against a physical device by this project the
+# way REG_HEMS_CURRENT_LIMIT (1000) was - this is cross-referenced from the
+# same "ECU-BRx and ECU-BBx Modbus TCP Server Specification" (Doc. Revision
+# 1.07) that register 1000 comes from, via secondary sources (evcc-io
+# community discussions/issues, wallbox reseller documentation) that quote
+# it by name and describe it as controlling AMTRON Charge Control / other
+# ECU-BRx-based devices with load-management-capable phase-switching
+# hardware installed. Only relevant if your specific unit has that hardware
+# (a physical relay disconnecting L2/L3) - see PHASE_MODE_DISABLED below,
+# which is the default and leaves this feature untouched.
+PHASE_MODE_DISABLED = "disabled"  # only REG_HEMS_CURRENT_LIMIT is used, as before
+PHASE_MODE_SINGLE_PHASE = "single_phase_only"  # HEMS_POWER_LIMIT, clamped to the 1-phase range
+PHASE_MODE_AUTO = "auto"  # HEMS_POWER_LIMIT, switches 1-phase/3-phase by requested power
+DEFAULT_PHASE_MODE = PHASE_MODE_DISABLED
+
+REG_HEMS_POWER_LIMIT = 1002  # R/W, Watts. 0 = pause; device auto-selects 1p/3p by value range.
+
+# Nominal single-phase voltage used to convert the requested charging power
+# (W) to a per-phase current (A) for the minimum-current check below. This
+# is a fixed assumption (EU nominal mains), not read from the device - there
+# is no documented register for it.
+NOMINAL_PHASE_VOLTAGE_V = 230
+# A phase is only usable at/above MIN_CURRENT_A (6 A, IEC 61851) per phase;
+# below the corresponding wattage, HEMS_POWER_LIMIT falls back to 0 (paused)
+# rather than to a current below the spec minimum.
+MIN_POWER_1PHASE_W = MIN_CURRENT_A * NOMINAL_PHASE_VOLTAGE_V  # 1380 W
+MIN_POWER_3PHASE_W = MIN_CURRENT_A * 3 * NOMINAL_PHASE_VOLTAGE_V  # 4140 W
 
 # --- General system info -------------------------------------------------
 REG_FIRMWARE_VERSION = 100  # 100-101, 32-bit - NOT a number, see coordinator.py

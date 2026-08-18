@@ -25,12 +25,40 @@ pymodbus dependency.
   manufacturer's documented pause mechanism)
 - **Status**, **session energy**, **total (lifetime) energy**, **system errors**, and
   **firmware version** as additional sensors
-- All three configurable values (max. current, start current, pause current) are changeable at
-  runtime via **Settings → Devices & Services → Mennekes AMTRON → Configure** — no file edits,
-  no restart. The start current is bounded between 6 A and the configured maximum current.
+- All three configurable currents (max., start, pause) are changeable at runtime via
+  **Settings → Devices & Services → Mennekes AMTRON → Configure** — no file edits, no restart.
+  The start current is bounded between 6 A and the configured maximum current.
+- Optional **1-phase/3-phase switching** — see below.
 
 See [`custom_components/mennekes_amtron/`](custom_components/mennekes_amtron/) for the full
 entity list and register-level detail in code comments.
+
+## Phase switching (1-phase / 3-phase)
+
+Off by default. If your unit has phase-switching hardware installed (a relay that can
+disconnect L2/L3), you can enable it in **Configure** under **"Phasenumschaltung" / "Phase
+switching"**:
+
+| Mode | Effect |
+|---|---|
+| Disabled *(default)* | Unchanged from above: only the Amp-based **Charging current limit** entity exists. |
+| Single-phase only | Adds a **Charging power limit** (W) entity; requests are always clamped to the 1-phase range, never switching to 3-phase. |
+| Automatic (1-phase / 3-phase) | Adds the same **Charging power limit** (W) entity; the wallbox switches phases itself depending on the requested power - below 4140 W it charges 1-phase, at or above it charges 3-phase (the wallbox's own documented behavior for this register, not something this integration decides). |
+
+Set the entity to the power you actually want delivered (e.g. `1380` for a minimal 1-phase
+charge, `11040` for a full 3-phase 16 A charge); the integration converts it to what the wallbox
+expects and enforces the IEC 61851 minimum of 6 A per phase - anything that would fall below
+that on the selected phase count is written as `0` (paused) instead, matching the register's own
+documented meaning for that value.
+
+**This is separate from, and independent of, the plain Amp-based current control above** - the
+two use different registers (`HEMS_CURRENT_LIMIT` vs `HEMS_POWER_LIMIT`) and are not meant to be
+used at the same time. Unlike `HEMS_CURRENT_LIMIT`, `HEMS_POWER_LIMIT` has **not been directly
+confirmed against physical hardware by this project** - it's cross-referenced from the same ECU
+Modbus TCP Server Specification via secondary sources (community reports for AMTRON/ECU-family
+devices) rather than the primary manufacturer PDF. Only enable a non-default mode if your
+installation actually has the phase-switching relay, and verify behavior carefully against your
+own unit before relying on it.
 
 ## Screenshots
 

@@ -28,12 +28,25 @@
         "data": {
           "max_current_a": "Maximum charging current (A)",
           "pause_current_a": "Current written by \"Pause charging\" (A)",
-          "start_current_a": "Current written by \"Start charging\" (A)"
+          "start_current_a": "Current written by \"Start charging\" (A)",
+          "phase_mode": "Phase switching"
+        },
+        "data_description": {
+          "phase_mode": "Only relevant if your wallbox has phase-switching hardware installed. Leave \"Disabled\" if unsure - see README."
         }
       }
     },
     "error": {
       "start_current_above_max": "The start current cannot be higher than the maximum charging current."
+    }
+  },
+  "selector": {
+    "phase_mode": {
+      "options": {
+        "disabled": "Disabled (current-only control)",
+        "single_phase_only": "Single-phase only",
+        "auto": "Automatic (1-phase / 3-phase)"
+      }
     }
   },
   "entity": {
@@ -73,6 +86,9 @@
     "number": {
       "current_limit": {
         "name": "Charging current limit"
+      },
+      "power_limit": {
+        "name": "Charging power limit"
       }
     },
     "button": {

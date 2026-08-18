@@ -8,10 +8,12 @@ from homeassistant.core import HomeAssistant
 from .const import (
     CONF_MAX_CURRENT_A,
     CONF_PAUSE_CURRENT_A,
+    CONF_PHASE_MODE,
     CONF_START_CURRENT_A,
     CONF_UNIT_ID,
     DEFAULT_MAX_CURRENT_A,
     DEFAULT_PAUSE_CURRENT_A,
+    DEFAULT_PHASE_MODE,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_START_CURRENT_A,
 )
@@ -36,6 +38,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         max_current_a=entry.options.get(CONF_MAX_CURRENT_A, DEFAULT_MAX_CURRENT_A),
         pause_current_a=entry.options.get(CONF_PAUSE_CURRENT_A, DEFAULT_PAUSE_CURRENT_A),
         start_current_a=entry.options.get(CONF_START_CURRENT_A, DEFAULT_START_CURRENT_A),
+        phase_mode=entry.options.get(CONF_PHASE_MODE, DEFAULT_PHASE_MODE),
     )
 
     # Raises ConfigEntryNotReady on failure, which makes HA retry setup
