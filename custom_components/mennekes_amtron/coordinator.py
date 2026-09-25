@@ -283,12 +283,25 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         Requires "Modbus Slave Allow Start/Stop Transaction" and "kostenloses
         Laden" (free charging) to be enabled on the wallbox, otherwise the tag
         is rejected as unauthorized. See README.md.
+
+        The two writes are wrapped separately (not in one try/except) so a
+        failure says which step it was: setting the current limit for the
+        new session, or writing/re-authorizing the IdTag. The two fail for
+        different reasons in practice - e.g. an "Illegal data value" on the
+        IdTag write alone, with the current-limit write having already
+        succeeded, suggests the ECU is refusing a *second* authorization
+        while it still considers a previous (paused, never unplugged)
+        session open, rather than a problem with the current value itself.
         """
-        values = _encode_id_tag(id_tag)
         try:
             await self.client.write_register(REG_HEMS_CURRENT_LIMIT, self.start_current_a)
+        except (ModbusConnectionError, ModbusError) as err:
+            raise HomeAssistantError(f"Could not set the start current: {err}") from err
+
+        values = _encode_id_tag(id_tag)
+        try:
             for offset, value in enumerate(values):
                 await self.client.write_register(REG_WRITE_IDTAG_START + offset, value)
         except (ModbusConnectionError, ModbusError) as err:
-            raise HomeAssistantError(f"Could not start charging: {err}") from err
+            raise HomeAssistantError(f"Could not authorize charging (IdTag write): {err}") from err
         await self.async_request_refresh()
