@@ -33,6 +33,9 @@ class AmtronStartButton(AmtronEntity, ButtonEntity):
     AND "kostenloses Laden" (free charging) are both enabled on the wallbox -
     see README.md. Since your car is permanently plugged in, no further
     action should be needed for a session to actually begin once authorized.
+    If a session is still open (e.g. paused the day before without
+    unplugging), only the current is written - see
+    AmtronCoordinator.async_start_charging.
     """
 
     _attr_translation_key = "start_charging"

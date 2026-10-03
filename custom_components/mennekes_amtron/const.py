@@ -120,6 +120,11 @@ CP_STATUS = {
     8: "suspended_ev",
     9: "finishing",
 }
+# States in which the ECU still holds an open, authorized transaction. Writing
+# a new IdTag in these is rejected with "Illegal data value" (observed on real
+# hardware: car left plugged in after a paused session, "Start" pressed the
+# next day); raising HEMS_CURRENT_LIMIT alone resumes the existing session.
+SESSION_ACTIVE_STATUSES = frozenset({"charging", "suspended_evse", "suspended_ev"})
 
 # Registers 111-112 ("ERROR_CODES_4"), one bit per condition (bits 0-21 only;
 # all higher bits, and all of ERROR_CODES_1-3, are reserved). Multiple bits

@@ -17,11 +17,13 @@ from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
-async def fake_modbus_server(registers: dict[int, int]):
+async def fake_modbus_server(registers: dict[int, int], rejected_writes: frozenset[int] = frozenset()):
     """Start a fake server backed by the given (mutable) register table.
 
     Yields (host, port). Writes (function code 0x06) mutate `registers` in
-    place, so a test can write-then-read to verify a round trip.
+    place, so a test can write-then-read to verify a round trip. Writes to
+    any address in `rejected_writes` get "Illegal Data Value" instead, the
+    way the real ECU rejects an IdTag while a session is still open.
     """
 
     async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -42,8 +44,11 @@ async def fake_modbus_server(registers: dict[int, int]):
                     resp_pdu = bytes([function_code]) + data
             elif function_code == 0x06:
                 address, value = struct.unpack(">HH", pdu[1:5])
-                registers[address] = value
-                resp_pdu = pdu  # echo back, per spec
+                if address in rejected_writes:
+                    resp_pdu = bytes([function_code | 0x80, 0x03])  # Illegal Data Value
+                else:
+                    registers[address] = value
+                    resp_pdu = pdu  # echo back, per spec
             else:
                 # Real Charge Control behaviour: function code 4 (and
                 # anything else this fake doesn't implement) is rejected.

@@ -47,6 +47,7 @@ from .const import (
     REG_OCPP_STATUS,
     REG_SIGNALED_CURRENT,
     REG_WRITE_IDTAG_START,
+    SESSION_ACTIVE_STATUSES,
     STATUS_BLOCK_COUNT,
     STATUS_BLOCK_START,
 )
@@ -284,24 +285,34 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         Laden" (free charging) to be enabled on the wallbox, otherwise the tag
         is rejected as unauthorized. See README.md.
 
-        The two writes are wrapped separately (not in one try/except) so a
-        failure says which step it was: setting the current limit for the
-        new session, or writing/re-authorizing the IdTag. The two fail for
-        different reasons in practice - e.g. an "Illegal data value" on the
-        IdTag write alone, with the current-limit write having already
-        succeeded, suggests the ECU is refusing a *second* authorization
-        while it still considers a previous (paused, never unplugged)
-        session open, rather than a problem with the current value itself.
+        If the ECU still holds an open transaction (SESSION_ACTIVE_STATUSES,
+        e.g. the car stayed plugged in after a pause), the IdTag write is
+        skipped: the ECU rejects a second authorization with "Illegal data
+        value", and the current-limit write above already resumes the
+        existing session. The status is read fresh rather than taken from
+        the last poll, which can be up to a scan interval old.
         """
         try:
             await self.client.write_register(REG_HEMS_CURRENT_LIMIT, self.start_current_a)
         except (ModbusConnectionError, ModbusError) as err:
             raise HomeAssistantError(f"Could not set the start current: {err}") from err
+        try:
+            status_regs = await self.client.read_holding_registers(REG_OCPP_STATUS, 1)
+        except (ModbusConnectionError, ModbusError) as err:
+            raise HomeAssistantError(f"Could not read the wallbox status: {err}") from err
+
+        status = CP_STATUS.get(status_regs[0], "unknown")
+        if status in SESSION_ACTIVE_STATUSES:
+            _LOGGER.debug("Session already active (status %s); resumed via current limit only", status)
+            await self.async_request_refresh()
+            return
 
         values = _encode_id_tag(id_tag)
         try:
             for offset, value in enumerate(values):
                 await self.client.write_register(REG_WRITE_IDTAG_START + offset, value)
         except (ModbusConnectionError, ModbusError) as err:
-            raise HomeAssistantError(f"Could not authorize charging (IdTag write): {err}") from err
+            raise HomeAssistantError(
+                f"Could not authorize charging (IdTag write, wallbox status: {status}): {err}"
+            ) from err
         await self.async_request_refresh()
