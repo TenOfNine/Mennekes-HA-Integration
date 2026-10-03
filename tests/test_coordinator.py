@@ -8,7 +8,9 @@ import asyncio
 import struct
 
 import mennekes_amtron.const as c
+import pytest
 from fake_modbus_server import fake_modbus_server
+from homeassistant.exceptions import HomeAssistantError
 from mennekes_amtron.coordinator import (
     AmtronCoordinator,
     _clamp_power_limit_w,
@@ -188,6 +190,7 @@ def test_pause_writes_the_configured_value_not_a_hardcoded_zero():
 def test_start_charging_writes_all_ten_idtag_registers():
     async def body():
         registers = _default_registers()
+        registers[c.REG_OCPP_STATUS] = 5  # preparing: plugged in, not yet authorized
         async with fake_modbus_server(registers) as (host, port):
             client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
             coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client)
@@ -222,6 +225,39 @@ def test_start_charging_defaults_the_start_current_to_default_start_current_a():
             coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client)
             await coordinator.async_start_charging("HOMEASSISTANT")
             assert registers[c.REG_HEMS_CURRENT_LIMIT] == c.DEFAULT_START_CURRENT_A
+
+    run(body())
+
+
+@pytest.mark.parametrize("status_code", [6, 7, 8])  # charging, suspended_evse, suspended_ev
+def test_start_charging_resumes_an_open_session_without_reauthorizing(status_code):
+    """Car left plugged in after a paused session: the real ECU rejects a
+    second IdTag with "Illegal data value", so only the current is raised."""
+
+    async def body():
+        registers = _default_registers()
+        registers[c.REG_OCPP_STATUS] = status_code
+        registers[c.REG_HEMS_CURRENT_LIMIT] = 0  # paused
+        idtag_addresses = frozenset(range(c.REG_WRITE_IDTAG_START, c.REG_WRITE_IDTAG_START + 10))
+        async with fake_modbus_server(registers, rejected_writes=idtag_addresses) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client, start_current_a=10)
+            await coordinator.async_start_charging("HOMEASSISTANT")
+            assert registers[c.REG_HEMS_CURRENT_LIMIT] == 10
+
+    run(body())
+
+
+def test_start_charging_names_the_wallbox_status_when_authorization_is_rejected():
+    async def body():
+        registers = _default_registers()
+        registers[c.REG_OCPP_STATUS] = 9  # finishing
+        idtag_addresses = frozenset(range(c.REG_WRITE_IDTAG_START, c.REG_WRITE_IDTAG_START + 10))
+        async with fake_modbus_server(registers, rejected_writes=idtag_addresses) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client)
+            with pytest.raises(HomeAssistantError, match="wallbox status: finishing.*Illegal data value"):
+                await coordinator.async_start_charging("HOMEASSISTANT")
 
     run(body())
 
