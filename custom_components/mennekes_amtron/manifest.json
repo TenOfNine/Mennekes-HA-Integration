@@ -3,9 +3,10 @@
   "name": "Mennekes AMTRON Charge Control (ECU Modbus)",
   "codeowners": [],
   "config_flow": true,
-  "documentation": "https://github.com/your-username/mennekes_amtron",
+  "documentation": "https://github.com/TenOfNine/Mennekes-HA-Integration",
   "integration_type": "device",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/TenOfNine/Mennekes-HA-Integration/issues",
   "requirements": [],
   "version": "0.4.0"
 }

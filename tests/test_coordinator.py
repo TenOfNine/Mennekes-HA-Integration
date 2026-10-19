@@ -19,6 +19,7 @@ from mennekes_amtron.coordinator import (
     _decode_power_w,
     _encode_id_tag,
     _to_uint32,
+    summarize_errors,
 )
 from mennekes_amtron.modbus_client import AmtronModbusClient
 
@@ -139,6 +140,13 @@ def test_coordinator_decodes_active_errors():
             assert data.active_errors == ["err_rcmb_triggered", "err_contactor_weld"]
 
     run(body())
+
+
+def test_summarize_errors_gives_one_translatable_state():
+    assert summarize_errors([]) == c.ERROR_STATE_NONE
+    assert summarize_errors(["err_rcd_triggered"]) == "err_rcd_triggered"
+    assert summarize_errors(["err_rcmb_triggered", "err_contactor_weld"]) == c.ERROR_STATE_MULTIPLE
+    assert {c.ERROR_STATE_NONE, c.ERROR_STATE_MULTIPLE, *c.ERROR_FLAGS.values()} == set(c.ERROR_STATES)
 
 
 def test_coordinator_exposes_reserved_error_words_as_raw_diagnostics():

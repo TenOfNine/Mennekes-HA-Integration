@@ -8,8 +8,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .charge_controller import CONTROL_STATES, ChargeController
-from .const import CP_STATUS, PV_AVERAGE_WINDOW_S
-from .coordinator import AmtronCoordinator, AmtronData
+from .const import CP_STATUS, ERROR_STATES, PV_AVERAGE_WINDOW_S
+from .coordinator import AmtronCoordinator, AmtronData, summarize_errors
 from .entity import AmtronEntity
 from .pv_surplus import PvSurplusTracker
 
@@ -108,8 +108,10 @@ class AmtronErrorSensor(AmtronEntity, SensorEntity):
     """Decoded ECU error flags (system errors), useful for troubleshooting.
 
     Unlike the HCC3 controller, the ECU can report *several* error
-    conditions at once as a bitmask, so the state is a summary and every
-    active (named) flag is listed in the entity's attributes. The three
+    conditions at once as a bitmask. The state is "no_error", the one
+    active flag, or "multiple_errors" - an enum, so the frontend shows it
+    translated - and every active (named) flag is listed in the entity's
+    attributes. The three
     "reserved" error-code register pairs (ERROR_CODES_1-3) are read too and
     exposed as raw values, even though the manufacturer's document does not
     currently define any named bits for them - in case your firmware
@@ -119,14 +121,14 @@ class AmtronErrorSensor(AmtronEntity, SensorEntity):
     _attr_translation_key = "error"
     _unique_id_suffix = "error"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ERROR_STATES
     _attr_icon = "mdi:alert-circle-outline"
 
     @property
     def native_value(self) -> str:
         data: AmtronData = self.coordinator.data
-        if not data.active_errors:
-            return "no_error"
-        return ", ".join(data.active_errors)
+        return summarize_errors(data.active_errors)
 
     @property
     def extra_state_attributes(self) -> dict[str, object]:

@@ -23,6 +23,8 @@ from .const import (
     DEFAULT_START_CURRENT_A,
     DOMAIN,
     ERROR_FLAGS,
+    ERROR_STATE_MULTIPLE,
+    ERROR_STATE_NONE,
     FIRMWARE_BLOCK_COUNT,
     FIRMWARE_BLOCK_START,
     METER_BLOCK_COUNT,
@@ -94,6 +96,19 @@ def _decode_error_pair(reg_at_lower_address: int, reg_at_higher_address: int) ->
     bits at the time of writing - see ERROR_FLAGS in const.py).
     """
     return (_byte_swap16(reg_at_higher_address) << 16) | _byte_swap16(reg_at_lower_address)
+
+
+def summarize_errors(active_errors: list[str]) -> str:
+    """The error sensor's state: one of ERROR_STATES, so Home Assistant can translate it.
+
+    Several active flags can't be joined into one translatable state, so
+    they become ERROR_STATE_MULTIPLE (the sensor lists them in its attributes).
+    """
+    if not active_errors:
+        return ERROR_STATE_NONE
+    if len(active_errors) == 1:
+        return active_errors[0]
+    return ERROR_STATE_MULTIPLE
 
 
 def _encode_id_tag(tag: str) -> list[int]:

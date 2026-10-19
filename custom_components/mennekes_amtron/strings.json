@@ -93,7 +93,33 @@
         "name": "Total energy"
       },
       "error": {
-        "name": "Error"
+        "name": "Error",
+        "state": {
+          "no_error": "No error",
+          "err_rcmb_triggered": "Residual current monitor (RCMB) tripped",
+          "err_vehicle_state_e": "Vehicle reports state E (fault)",
+          "err_mode3_diode_check": "Mode 3 diode check failed",
+          "err_mcb_type2_triggered": "Circuit breaker of the Type 2 socket tripped",
+          "err_mcb_schuko_triggered": "Circuit breaker of the Schuko socket tripped",
+          "err_rcd_triggered": "RCD tripped",
+          "err_contactor_weld": "Contactor welded",
+          "err_backend_disconnected": "Backend disconnected",
+          "err_actuator_locking_failed": "Plug lock failed",
+          "err_actuator_locking_without_plug_failed": "Lock test without plug failed",
+          "err_actuator_stuck": "Lock actuator stuck",
+          "err_actuator_detection_failed": "Lock actuator not detected",
+          "err_fw_update_running": "Firmware update running",
+          "err_tilt": "Tilt detected",
+          "err_wrong_cp_pr_wiring": "Wrong CP/PR wiring",
+          "err_type2_overload_thr_2": "Type 2 socket overloaded",
+          "err_actuator_unlocked_while_charging": "Plug unlocked while charging",
+          "err_tilt_prevent_charging_until_reboot": "Tilt detected, charging blocked until restart",
+          "err_pic24": "PIC24 controller error",
+          "err_usb_stick_handling": "USB stick error",
+          "err_incorrect_phase_installation": "Phases installed incorrectly",
+          "err_no_power": "No power",
+          "multiple_errors": "Several errors (see attributes)"
+        }
       },
       "firmware_version": {
         "name": "Firmware version"
@@ -113,31 +139,31 @@
           "phase_switching_enabled": "Phase switching enabled",
           "waiting_for_soc": "Waiting for battery SoC",
           "waiting_for_surplus": "Waiting for surplus",
-          "charging_pv": "Charging from PV surplus",
+          "charging_pv": "Charging from PV",
           "buffering": "Buffering from battery",
-          "min_interval": "Minimum interval running",
+          "min_interval": "Lockout running",
           "error": "Error"
         }
       }
     },
     "number": {
       "current_limit": {
-        "name": "Charging current limit"
+        "name": "Current limit"
       },
       "power_limit": {
-        "name": "Charging power limit"
+        "name": "Power limit"
       },
       "pv_soc_start": {
-        "name": "PV: start at battery SoC"
+        "name": "PV start SoC"
       },
       "pv_soc_stop": {
-        "name": "PV: stop below battery SoC"
+        "name": "PV stop SoC"
       },
       "pv_min_switch_interval": {
-        "name": "PV: minimum time between start/stop"
+        "name": "PV lockout"
       },
       "pv_buffer_time": {
-        "name": "PV: buffer time below 6 A"
+        "name": "PV buffer time"
       }
     },
     "button": {
@@ -161,7 +187,7 @@
     },
     "switch": {
       "immediate_auto_return": {
-        "name": "Immediate: back to PV surplus when full"
+        "name": "Immediate: back to PV"
       }
     }
   }
