@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .charge_controller import ChargeController
 from .coordinator import AmtronCoordinator
 from .entity import AmtronEntity
 
@@ -14,16 +15,24 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up AMTRON control buttons from a config entry."""
-    coordinator: AmtronCoordinator = entry.runtime_data.coordinator
+    runtime = entry.runtime_data
     async_add_entities(
         [
-            AmtronStartButton(coordinator, entry),
-            AmtronPauseButton(coordinator, entry),
+            AmtronStartButton(runtime.coordinator, entry, runtime.controller),
+            AmtronPauseButton(runtime.coordinator, entry, runtime.controller),
         ]
     )
 
 
-class AmtronStartButton(AmtronEntity, ButtonEntity):
+class _AmtronManualButton(AmtronEntity, ButtonEntity):
+    """A press is a manual override: the charge mode switches to manual first."""
+
+    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry, controller: ChargeController) -> None:
+        super().__init__(coordinator, entry)
+        self._controller = controller
+
+
+class AmtronStartButton(_AmtronManualButton):
     """Starts charging (requirement 3) at the configured start current.
 
     Writes the "Startladestrom" option (Settings -> Devices & Services ->
@@ -43,10 +52,10 @@ class AmtronStartButton(AmtronEntity, ButtonEntity):
     _attr_icon = "mdi:play-circle-outline"
 
     async def async_press(self) -> None:
-        await self.coordinator.async_start_charging()
+        await self._controller.async_manual_action(self.coordinator.async_start_charging)
 
 
-class AmtronPauseButton(AmtronEntity, ButtonEntity):
+class AmtronPauseButton(_AmtronManualButton):
     """Pauses charging by writing the configured "pause current" (0 A by default).
 
     The written value comes from the "Ladestrom bei Pause" option (Settings
@@ -63,4 +72,4 @@ class AmtronPauseButton(AmtronEntity, ButtonEntity):
     _attr_icon = "mdi:pause-circle-outline"
 
     async def async_press(self) -> None:
-        await self.coordinator.async_pause_charging()
+        await self._controller.async_manual_action(self.coordinator.async_pause_charging)

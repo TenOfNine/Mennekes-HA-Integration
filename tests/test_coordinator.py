@@ -229,6 +229,19 @@ def test_start_charging_defaults_the_start_current_to_default_start_current_a():
     run(body())
 
 
+def test_start_charging_with_an_explicit_current_overrides_the_start_current():
+    async def body():
+        registers = _default_registers()
+        registers[c.REG_HEMS_CURRENT_LIMIT] = 0
+        async with fake_modbus_server(registers) as (host, port):
+            client = AmtronModbusClient(host, port, UNIT_ID, timeout=2.0)
+            coordinator = AmtronCoordinator(_StubHass(), _StubEntry(), client, start_current_a=16)
+            await coordinator.async_start_charging(current_a=8)
+            assert registers[c.REG_HEMS_CURRENT_LIMIT] == 8
+
+    run(body())
+
+
 @pytest.mark.parametrize("status_code", [6, 7, 8])  # charging, suspended_evse, suspended_ev
 def test_start_charging_resumes_an_open_session_without_reauthorizing(status_code):
     """Car left plugged in after a paused session: the real ECU rejects a

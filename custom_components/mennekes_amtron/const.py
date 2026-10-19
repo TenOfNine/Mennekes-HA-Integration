@@ -96,6 +96,27 @@ MIN_POWER_3PHASE_W = MIN_CURRENT_A * 3 * NOMINAL_PHASE_VOLTAGE_V  # 4140 W
 PV_SAMPLE_INTERVAL_S = 10
 PV_AVERAGE_WINDOW_S = 120  # rides out short shading instead of reacting to every cloud
 
+# --- Charge modes and the PV surplus controller ---------------------------
+MODE_PV_SURPLUS = "pv_surplus"
+MODE_IMMEDIATE = "immediate"
+MODE_OFF = "off"
+MODE_MANUAL = "manual"
+CHARGE_MODES = [MODE_PV_SURPLUS, MODE_IMMEDIATE, MODE_OFF, MODE_MANUAL]
+DEFAULT_CHARGE_MODE = MODE_MANUAL  # existing installs behave as before until a mode is picked
+
+PV_CONTROL_INTERVAL_S = 30
+# No decisions on a few seconds of data right after a (re)start: wait for
+# half an averaging window.
+PV_MIN_SAMPLES = PV_AVERAGE_WINDOW_S // PV_SAMPLE_INTERVAL_S // 2
+PV_UNPLUG_RESET_S = 10
+# The car charges on one phase, so each Amp is worth one phase's voltage.
+PV_WATTS_PER_AMP = NOMINAL_PHASE_VOLTAGE_V
+
+DEFAULT_PV_SOC_START_PCT = 60
+DEFAULT_PV_SOC_STOP_PCT = 50
+DEFAULT_PV_MIN_SWITCH_INTERVAL_S = 90
+DEFAULT_PV_BUFFER_TIME_MIN = 10
+
 # --- General system info -------------------------------------------------
 REG_FIRMWARE_VERSION = 100  # 100-101, 32-bit - NOT a number, see coordinator.py
 FIRMWARE_BLOCK_START = REG_FIRMWARE_VERSION
@@ -135,6 +156,13 @@ CP_STATUS = {
 # hardware: car left plugged in after a paused session, "Start" pressed the
 # next day); raising HEMS_CURRENT_LIMIT alone resumes the existing session.
 SESSION_ACTIVE_STATUSES = frozenset({"charging", "suspended_evse", "suspended_ev"})
+# Authorized and not held back by the wallbox (the car may still pause itself).
+CHARGING_RELEASED_STATUSES = frozenset({"charging", "suspended_ev"})
+# Statuses the charge controller acts on. Anything else (faulted, occupied,
+# reserved, ...) makes it hold still until the status is one of these again.
+CONTROLLABLE_STATUSES = frozenset(
+    {"available", "preparing", "charging", "suspended_evse", "suspended_ev", "finishing"}
+)
 
 # Registers 111-112 ("ERROR_CODES_4"), one bit per condition (bits 0-21 only;
 # all higher bits, and all of ERROR_CODES_1-3, are reserved). Multiple bits

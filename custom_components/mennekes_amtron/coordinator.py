@@ -273,8 +273,9 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         """Pause charging by writing the configured pause current (0 A by default)."""
         await self.async_set_current_limit(self.pause_current_a)
 
-    async def async_start_charging(self, id_tag: str = DEFAULT_ID_TAG) -> None:
-        """Set the configured start current, then write a synthetic OCPP IdTag.
+    async def async_start_charging(self, id_tag: str = DEFAULT_ID_TAG, current_a: int | None = None) -> None:
+        """Set the start current (the configured one unless `current_a` is given),
+        then write a synthetic OCPP IdTag.
 
         The current limit must be written first: it's what the ECU offers to
         the EV, while the IdTag is only the authorization (equivalent to
@@ -293,7 +294,9 @@ class AmtronCoordinator(DataUpdateCoordinator[AmtronData]):
         the last poll, which can be up to a scan interval old.
         """
         try:
-            await self.client.write_register(REG_HEMS_CURRENT_LIMIT, self.start_current_a)
+            await self.client.write_register(
+                REG_HEMS_CURRENT_LIMIT, self.start_current_a if current_a is None else current_a
+            )
         except (ModbusConnectionError, ModbusError) as err:
             raise HomeAssistantError(f"Could not set the start current: {err}") from err
         try:

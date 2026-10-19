@@ -6,3 +6,4 @@ class Platform:
     SENSOR = "sensor"
     NUMBER = "number"
     BUTTON = "button"
+    SELECT = "select"

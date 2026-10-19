@@ -12,6 +12,7 @@ from .const import (
     CONF_PAUSE_CURRENT_A,
     CONF_PHASE_MODE,
     CONF_PV_BATTERY_DISCHARGE_ENTITY,
+    CONF_PV_BATTERY_SOC_ENTITY,
     CONF_PV_FEED_IN_ENTITIES,
     CONF_PV_GRID_IMPORT_ENTITY,
     CONF_START_CURRENT_A,
@@ -22,11 +23,12 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_START_CURRENT_A,
 )
+from .charge_controller import ChargeController
 from .coordinator import AmtronCoordinator
 from .modbus_client import AmtronModbusClient
 from .pv_surplus import PvSurplusTracker
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.BUTTON]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.BUTTON, Platform.SELECT]
 
 
 @dataclass
@@ -35,6 +37,7 @@ class AmtronRuntimeData:
 
     coordinator: AmtronCoordinator
     pv_surplus: PvSurplusTracker | None  # None until PV feed-in entities are configured
+    controller: ChargeController
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -70,7 +73,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         entry.async_on_unload(pv_surplus.async_start())
 
-    entry.runtime_data = AmtronRuntimeData(coordinator=coordinator, pv_surplus=pv_surplus)
+    controller = ChargeController(
+        hass, coordinator, pv_surplus, soc_entity=entry.options.get(CONF_PV_BATTERY_SOC_ENTITY)
+    )
+    entry.async_on_unload(controller.async_start())
+
+    entry.runtime_data = AmtronRuntimeData(
+        coordinator=coordinator, pv_surplus=pv_surplus, controller=controller
+    )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Reload the entry (re-running this function with the new values) when

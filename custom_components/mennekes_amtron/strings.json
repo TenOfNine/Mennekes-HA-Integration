@@ -37,7 +37,7 @@
       },
       "pv_sources": {
         "title": "PV surplus: sources",
-        "description": "Optional. Entities from other integrations (e.g. your inverter) the PV surplus is calculated from: feed-in minus grid import minus battery discharge plus the wallbox's own charging power, averaged over 2 minutes. All values are expected as positive power values (W or kW). Without a feed-in entity nothing is calculated. Nothing is switched yet: the result only shows up as the \"PV surplus\" sensor.",
+        "description": "Optional. Entities from other integrations (e.g. your inverter) the PV surplus is calculated from: feed-in minus grid import minus battery discharge plus the wallbox's own charging power, averaged over 2 minutes. All values are expected as positive power values (W or kW). Without a feed-in entity nothing is calculated and the \"PV surplus\" charge mode does nothing.",
         "data": {
           "pv_feed_in_entities": "Grid feed-in",
           "pv_grid_import_entity": "Grid import",
@@ -48,7 +48,7 @@
           "pv_feed_in_entities": "Several entities are added up, e.g. the inverter's feed-in plus balcony power plants. Don't add a plant whose output your grid meter already includes, or it counts twice.",
           "pv_grid_import_entity": "Counts as 0 W if left empty.",
           "pv_battery_discharge_entity": "Counts as 0 W if left empty (no home battery).",
-          "pv_battery_soc_entity": "Not used yet; needed for surplus charging in a later version."
+          "pv_battery_soc_entity": "The \"PV surplus\" charge mode starts at or above the start SoC and stops below the stop SoC. Leave empty without a home battery."
         }
       }
     },
@@ -100,6 +100,24 @@
       },
       "pv_surplus": {
         "name": "PV surplus"
+      },
+      "charge_control": {
+        "name": "Charge control",
+        "state": {
+          "manual": "Manual",
+          "off": "Off",
+          "immediate": "Immediate charging",
+          "not_connected": "No vehicle",
+          "no_data": "Waiting for data",
+          "no_sources": "No PV sources configured",
+          "phase_switching_enabled": "Phase switching enabled",
+          "waiting_for_soc": "Waiting for battery SoC",
+          "waiting_for_surplus": "Waiting for surplus",
+          "charging_pv": "Charging from PV surplus",
+          "buffering": "Buffering from battery",
+          "min_interval": "Minimum interval running",
+          "error": "Error"
+        }
       }
     },
     "number": {
@@ -108,6 +126,18 @@
       },
       "power_limit": {
         "name": "Charging power limit"
+      },
+      "pv_soc_start": {
+        "name": "PV: start at battery SoC"
+      },
+      "pv_soc_stop": {
+        "name": "PV: stop below battery SoC"
+      },
+      "pv_min_switch_interval": {
+        "name": "PV: minimum time between start/stop"
+      },
+      "pv_buffer_time": {
+        "name": "PV: buffer time below 6 A"
       }
     },
     "button": {
@@ -116,6 +146,17 @@
       },
       "pause_charging": {
         "name": "Pause charging"
+      }
+    },
+    "select": {
+      "charge_mode": {
+        "name": "Charge mode",
+        "state": {
+          "pv_surplus": "PV surplus",
+          "immediate": "Immediate",
+          "off": "Off",
+          "manual": "Manual"
+        }
       }
     }
   }
