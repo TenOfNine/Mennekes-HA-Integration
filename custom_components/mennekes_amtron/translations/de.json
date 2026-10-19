@@ -158,6 +158,11 @@
           "manual": "Manuell"
         }
       }
+    },
+    "switch": {
+      "immediate_auto_return": {
+        "name": "Sofort: danach zurück zu PV-Überschuss"
+      }
     }
   }
 }

@@ -94,7 +94,7 @@ The **Charge mode** select entity:
 | Mode | Effect |
 |---|---|
 | PV surplus | The controller below starts, stops and sets the current. |
-| Immediate | Charges at the configured maximum current. |
+| Immediate | Charges at the configured maximum current; optionally back to PV surplus once the car is full (below). |
 | Off | Holds the current at 0 A. |
 | Manual *(default)* | The integration doesn't touch the wallbox on its own. |
 
@@ -102,6 +102,13 @@ The **Charge mode** select entity:
 **Charging current limit**, switches the mode to Manual - otherwise the controller would undo it
 within 30 s. The controller's own starts and stops don't. Unplugging the car (status "Available"
 for 10 s) switches Manual back to PV surplus; Immediate and Off stay until you change them.
+
+**Back from Immediate:** with *Immediate: back to PV surplus when full* on (the default), Immediate
+switches to PV surplus once the car is full. The wallbox doesn't know the car's state of charge,
+so "full" means the car has paused charging itself (status "Suspended (vehicle)") for 10 minutes
+while current was offered. A car that pauses on its own for other reasons (e.g. its own charging
+timer) counts as full too; turn the switch off then. PV surplus then takes over the session as at
+plug-in: it keeps it if the start condition holds and stops it otherwise.
 
 ### PV surplus controller
 

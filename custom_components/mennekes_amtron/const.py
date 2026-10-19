@@ -117,6 +117,12 @@ DEFAULT_PV_SOC_STOP_PCT = 50
 DEFAULT_PV_MIN_SWITCH_INTERVAL_S = 90
 DEFAULT_PV_BUFFER_TIME_MIN = 10
 
+# "Immediate" counts the car as full once it has paused charging itself
+# (status suspended_ev, so current is offered) for this long: the wallbox
+# doesn't know the car's state of charge.
+IMMEDIATE_DONE_AFTER_S = 600
+DEFAULT_IMMEDIATE_AUTO_RETURN = True
+
 # --- General system info -------------------------------------------------
 REG_FIRMWARE_VERSION = 100  # 100-101, 32-bit - NOT a number, see coordinator.py
 FIRMWARE_BLOCK_START = REG_FIRMWARE_VERSION

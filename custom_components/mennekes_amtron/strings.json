@@ -158,6 +158,11 @@
           "manual": "Manual"
         }
       }
+    },
+    "switch": {
+      "immediate_auto_return": {
+        "name": "Immediate: back to PV surplus when full"
+      }
     }
   }
 }

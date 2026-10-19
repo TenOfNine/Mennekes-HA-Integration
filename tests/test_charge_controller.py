@@ -342,6 +342,98 @@ def test_picking_a_mode_acts_at_once_despite_the_minimum_interval():
     run(body())
 
 
+# --- Immediate: back to PV surplus once the car is full ---------------------------
+
+
+def _immediate(**kwargs) -> Setup:
+    s = Setup(status="charging", current_limit_a=16, **kwargs)
+    s.controller.restore_mode(c.MODE_IMMEDIATE)
+    return s
+
+
+def test_immediate_returns_to_pv_surplus_after_the_car_paused_for_10_min():
+    async def body():
+        s = _immediate(average_w=0)
+        assert await s.cycle(0) == STATE_IMMEDIATE
+        s.set(status="suspended_ev")
+        await s.cycle(30)
+        assert await s.cycle(30 + 599) == STATE_IMMEDIATE
+        assert s.controller.mode == c.MODE_IMMEDIATE
+
+        # Full, no surplus: PV surplus stops the session it now takes over.
+        assert await s.cycle(30 + 600) == STATE_WAITING_FOR_SURPLUS
+        assert s.controller.mode == c.MODE_PV_SURPLUS
+        assert s.wallbox.writes == [("current", 0)]
+
+    run(body())
+
+
+def test_after_immediate_pv_surplus_keeps_the_session_if_the_start_condition_holds():
+    async def body():
+        s = _immediate(average_w=3000)
+        s.set(status="suspended_ev")
+        await s.cycle(0)
+        assert await s.cycle(600) == STATE_CHARGING
+        assert s.controller.mode == c.MODE_PV_SURPLUS
+        assert s.wallbox.writes == [("start", 13)]  # session open: only the current
+        assert s.controller.released
+
+    run(body())
+
+
+def test_charging_again_restarts_the_10_min():
+    async def body():
+        s = _immediate()
+        s.set(status="suspended_ev")
+        await s.cycle(0)
+        s.set(status="charging")
+        await s.cycle(300)
+        s.set(status="suspended_ev")
+        await s.cycle(330)
+        assert await s.cycle(900) == STATE_IMMEDIATE  # 570 s since 330
+        assert await s.cycle(930) != STATE_IMMEDIATE
+        assert s.controller.mode == c.MODE_PV_SURPLUS
+
+    run(body())
+
+
+def test_unplugging_restarts_the_10_min():
+    async def body():
+        s = _immediate()
+        s.set(status="suspended_ev")
+        await s.cycle(0)
+        s.set(status="available")
+        await s.cycle(300)
+        s.set(status="suspended_ev")
+        await s.cycle(330)
+        assert await s.cycle(900) == STATE_IMMEDIATE
+        assert s.controller.mode == c.MODE_IMMEDIATE
+
+    run(body())
+
+
+@pytest.mark.parametrize(
+    "setup",
+    [
+        lambda: _immediate(),
+        lambda: _immediate(with_pv=False),
+    ],
+    ids=["switched_off", "no_pv_sources"],
+)
+def test_immediate_stays_when_the_return_is_off_or_there_are_no_pv_sources(setup):
+    async def body():
+        s = setup()
+        if s.controller.has_pv_sources:
+            s.controller.update_setting("immediate_auto_return", False)
+        s.set(status="suspended_ev")
+        await s.cycle(0)
+        assert await s.cycle(3600) == STATE_IMMEDIATE
+        assert s.controller.mode == c.MODE_IMMEDIATE
+        assert s.wallbox.writes == []
+
+    run(body())
+
+
 # --- Unplugging -----------------------------------------------------------------
 
 

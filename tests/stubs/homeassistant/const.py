@@ -7,3 +7,4 @@ class Platform:
     NUMBER = "number"
     BUTTON = "button"
     SELECT = "select"
+    SWITCH = "switch"

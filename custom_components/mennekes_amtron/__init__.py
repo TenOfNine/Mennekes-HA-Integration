@@ -28,7 +28,7 @@ from .coordinator import AmtronCoordinator
 from .modbus_client import AmtronModbusClient
 from .pv_surplus import PvSurplusTracker
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.BUTTON, Platform.SELECT]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.BUTTON, Platform.SELECT, Platform.SWITCH]
 
 
 @dataclass

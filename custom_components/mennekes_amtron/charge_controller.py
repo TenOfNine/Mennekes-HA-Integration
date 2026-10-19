@@ -4,7 +4,8 @@ One mode at a time, picked with the "charge mode" select entity:
 
 - pv_surplus: start, stop and set the current from the averaged PV surplus
   (pv_surplus.py), with a battery-SoC hysteresis - see _async_regulate.
-- immediate: charge at the configured maximum current.
+- immediate: charge at the configured maximum current, and optionally go
+  back to pv_surplus once the car is full - see _async_immediate.
 - off: hold the current limit at 0 A.
 - manual: never touch the wallbox. The default, and what the Start/Pause
   buttons and a manual current change switch to.
@@ -33,10 +34,12 @@ from .const import (
     CHARGING_RELEASED_STATUSES,
     CONTROLLABLE_STATUSES,
     DEFAULT_CHARGE_MODE,
+    DEFAULT_IMMEDIATE_AUTO_RETURN,
     DEFAULT_PV_BUFFER_TIME_MIN,
     DEFAULT_PV_MIN_SWITCH_INTERVAL_S,
     DEFAULT_PV_SOC_START_PCT,
     DEFAULT_PV_SOC_STOP_PCT,
+    IMMEDIATE_DONE_AFTER_S,
     MIN_CURRENT_A,
     MODE_IMMEDIATE,
     MODE_MANUAL,
@@ -94,6 +97,7 @@ class PvSettings:
     soc_stop_pct: int = DEFAULT_PV_SOC_STOP_PCT
     min_switch_interval_s: int = DEFAULT_PV_MIN_SWITCH_INTERVAL_S
     buffer_time_min: int = DEFAULT_PV_BUFFER_TIME_MIN
+    immediate_auto_return: bool = DEFAULT_IMMEDIATE_AUTO_RETURN
 
 
 def _read_number(state: Any) -> float | None:
@@ -130,6 +134,7 @@ class ChargeController:
         self._last_switch: float | None = None
         self._below_min_since: float | None = None
         self._unplugged_since: float | None = None
+        self._vehicle_paused_since: float | None = None
         self._lock = asyncio.Lock()
         self._listeners: list[Callable[[], None]] = []
 
@@ -158,6 +163,7 @@ class ChargeController:
         self.mode = mode
         self.released = False
         self._below_min_since = None
+        self._vehicle_paused_since = None
 
     @callback
     def restore_mode(self, mode: str) -> None:
@@ -181,7 +187,7 @@ class ChargeController:
             await action()
         self._notify()
 
-    def update_setting(self, key: str, value: int) -> None:
+    def update_setting(self, key: str, value: int | bool) -> None:
         candidate = replace(self.settings, **{key: value})
         if candidate.soc_stop_pct >= candidate.soc_start_pct:
             raise HomeAssistantError(
@@ -191,7 +197,7 @@ class ChargeController:
         self._notify()
 
     @callback
-    def restore_setting(self, key: str, value: int) -> None:
+    def restore_setting(self, key: str, value: int | bool) -> None:
         # Not validated: the settings restore one by one, and a restored
         # start/stop pair is only consistent once both are back.
         self.settings = replace(self.settings, **{key: value})
@@ -272,12 +278,20 @@ class ChargeController:
         if data.status == "available":
             self.released = False
             self._below_min_since = None
+            self._vehicle_paused_since = None
             return STATE_NOT_CONNECTED
         if self.mode == MODE_IMMEDIATE:
             return await self._async_immediate(now, data)
         return await self._async_regulate(now, data)
 
     async def _async_immediate(self, now: float, data: AmtronData) -> str:
+        if self._vehicle_full(now, data):
+            _LOGGER.info(
+                "The car has not drawn current for %d min in Immediate mode; switching to PV surplus",
+                IMMEDIATE_DONE_AFTER_S // 60,
+            )
+            self._enter_mode(MODE_PV_SURPLUS)
+            return await self._async_regulate(now, data)
         target = self._coordinator.max_current_a
         self.target_current_a = target
         if data.status in SESSION_ACTIVE_STATUSES:
@@ -289,6 +303,19 @@ class ChargeController:
         self._last_switch = now
         await self._coordinator.async_start_charging(current_a=target)
         return STATE_IMMEDIATE
+
+    def _vehicle_full(self, now: float, data: AmtronData) -> bool:
+        """The car paused charging itself (current offered, none drawn) for IMMEDIATE_DONE_AFTER_S."""
+        if data.status != "suspended_ev":
+            self._vehicle_paused_since = None
+            return False
+        if self._vehicle_paused_since is None:
+            self._vehicle_paused_since = now
+        return (
+            self.settings.immediate_auto_return
+            and self.has_pv_sources
+            and now - self._vehicle_paused_since >= IMMEDIATE_DONE_AFTER_S
+        )
 
     async def _async_regulate(self, now: float, data: AmtronData) -> str:
         if self._tracker is None:
