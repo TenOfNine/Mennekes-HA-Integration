@@ -19,7 +19,7 @@ pymodbus dependency.
 ## Features
 
 - **Charging power** (kW) — live, from the wallbox's built-in energy meter
-- **Charging current limit** (A) — adjustable, with a configurable maximum matching your
+- **Current limit** (A) — adjustable, with a configurable maximum matching your
   supply circuit's fusing
 - **Start charging** — sets a configurable "start current" (16 A by default), then writes a
   synthetic OCPP IdTag (same effect as tapping an RFID card). If a session is already open, it
@@ -41,17 +41,18 @@ pymodbus dependency.
 | Entity | Type | Shown under | Notes |
 |---|---|---|---|
 | Charge mode | Select | Controls | PV surplus / Immediate / Off / Manual. Default Manual. |
-| Charging current limit | Number (A) | Controls | 0 = paused; 6 A … configured maximum. Changing it switches the charge mode to Manual. |
-| Charging power limit | Number (W) | Controls | Only with phase switching enabled. |
+| Current limit | Number (A) | Controls | 0 = paused; 6 A … configured maximum. Changing it switches the charge mode to Manual. |
+| Power limit | Number (W) | Controls | Only with phase switching enabled. |
 | Start charging / Pause charging | Button | Controls | Both switch the charge mode to Manual. |
 | Charging power | Sensor (kW) | Sensors | From the wallbox's meter. |
 | Status | Sensor | Sensors | OCPP status, e.g. Available, Charging, Suspended (wallbox), Suspended (vehicle). |
 | Session energy / Total energy | Sensor (Wh) | Sensors | Total energy works with the Energy dashboard. |
 | PV surplus | Sensor (W) | Sensors | Only with PV sources configured; 2-minute average. |
-| PV: start at battery SoC, PV: stop below battery SoC, PV: minimum time between start/stop, PV: buffer time below 6 A | Number | Configuration | Only with PV sources configured. |
-| Immediate: back to PV surplus when full | Switch | Configuration | Only with PV sources configured. |
+| PV start SoC, PV stop SoC, PV lockout, PV buffer time | Number | Configuration | Only with PV sources configured; see [PV surplus controller](#pv-surplus-controller). |
+| Immediate: back to PV | Switch | Configuration | Only with PV sources configured; see [Back from Immediate](#charge-mode). |
 | Charge control | Sensor | Diagnostic | What the PV controller is doing and why. |
-| Error / Firmware version | Sensor | Diagnostic | |
+| Error | Sensor | Diagnostic | "No error", the active error in plain words, or "Several errors"; the attributes list every active error. |
+| Firmware version | Sensor | Diagnostic | |
 
 ## Getting started
 
@@ -75,9 +76,9 @@ switching"**:
 
 | Mode | Effect |
 |---|---|
-| Disabled *(default)* | Unchanged from above: only the Amp-based **Charging current limit** entity exists. |
-| Single-phase only | Adds a **Charging power limit** (W) entity; requests are always clamped to the 1-phase range, never switching to 3-phase. The charge mode controller (PV surplus, Immediate, Off) is inactive in this mode and the next. |
-| Automatic (1-phase / 3-phase) | Adds the same **Charging power limit** (W) entity; the wallbox switches phases itself depending on the requested power - below 4140 W it charges 1-phase, at or above it charges 3-phase (the wallbox's own documented behavior for this register, not something this integration decides). |
+| Disabled *(default)* | Unchanged from above: only the Amp-based **Current limit** entity exists. |
+| Single-phase only | Adds a **Power limit** (W) entity; requests are always clamped to the 1-phase range, never switching to 3-phase. The charge mode controller (PV surplus, Immediate, Off) is inactive in this mode and the next. |
+| Automatic (1-phase / 3-phase) | Adds the same **Power limit** (W) entity; the wallbox switches phases itself depending on the requested power - below 4140 W it charges 1-phase, at or above it charges 3-phase (the wallbox's own documented behavior for this register, not something this integration decides). |
 
 Set the entity to the power you actually want delivered (e.g. `1380` for a minimal 1-phase
 charge, `11040` for a full 3-phase 16 A charge); the integration converts it to what the wallbox
@@ -132,12 +133,12 @@ The **Charge mode** select entity:
 | Manual *(default)* | The integration doesn't touch the wallbox on its own. |
 
 **Manual override:** pressing **Start charging** or **Pause charging**, or changing the
-**Charging current limit**, switches the mode to Manual - otherwise the controller would undo it
+**Current limit**, switches the mode to Manual - otherwise the controller would undo it
 within 30 s. The controller's own starts and stops don't. Unplugging the car (status "Available"
 for 10 s) switches Manual back to PV surplus if PV sources are configured; Immediate and Off
 stay until you change them.
 
-**Back from Immediate:** with *Immediate: back to PV surplus when full* on (the default), Immediate
+**Back from Immediate:** with *Immediate: back to PV* on (the default), Immediate
 switches to PV surplus once the car is full. The wallbox doesn't know the car's state of charge,
 so "full" means the car has paused charging itself (status "Suspended (vehicle)") for 10 minutes
 while current was offered. A car that pauses on its own for other reasons (e.g. its own charging
@@ -148,18 +149,17 @@ plug-in: it keeps it if the start condition holds and stops it otherwise.
 
 Runs every 30 s. It assumes the car charges on **one phase**, so each Amp is worth 230 W.
 
-- **Start** when the battery SoC is at or above *PV: start at battery SoC* (default 60 %) **and**
-  the 2-minute average is at least 1380 W (6 A).
+- **Start** when the battery SoC is at or above *PV start SoC* (default 60 %) **and** the
+  2-minute average is at least 1380 W (6 A).
 - **Current** = floor(average / 230 W), limited to 6 A … the configured maximum; written only when
   it changes.
-- **Below 6 A** of surplus it keeps charging at 6 A from the battery for *PV: buffer time below
-  6 A* (default 10 min) to bridge clouds, then stops. The battery only buffers; it isn't drained
-  into the car.
-- **Stop** when the SoC falls below *PV: stop below battery SoC* (default 50 %); it restarts only
-  once the start SoC is reached again. The gap is the hysteresis, so the stop SoC must stay below
-  the start SoC.
-- At least *PV: minimum time between start/stop* (default 90 s) between two start or stop
-  commands. Picking a mode yourself acts at once.
+- **Below 6 A** of surplus it keeps charging at 6 A from the battery for *PV buffer time*
+  (default 10 min) to bridge clouds, then stops. The battery only buffers; it isn't drained into
+  the car.
+- **Stop** when the SoC falls below *PV stop SoC* (default 50 %); it restarts only once the start
+  SoC is reached again. The gap is the hysteresis, so the stop SoC must stay below the start SoC.
+- At least *PV lockout* (default 90 s) between two start or stop commands. Picking a mode
+  yourself acts at once.
 - If the wallbox starts charging on its own (e.g. at plug-in), the controller takes the session
   over if the start condition holds and stops it otherwise - the start SoC applies to every
   session.
@@ -195,9 +195,9 @@ Page 2 picks the PV surplus sources:
 
 ![Configure options, page 2: PV surplus sources](screenshots/configure_pv_sources_en.png)
 
-The charging-current-limit entity's own dialog, with its history graph:
+The current limit entity's own dialog, with its history graph:
 
-![Charging current limit entity](screenshots/entity_current_limit_en.png)
+![Current limit entity](screenshots/entity_current_limit_en.png)
 
 <details>
 <summary>Same screenshots in German (Home Assistant UI set to Deutsch)</summary>
@@ -206,7 +206,7 @@ The charging-current-limit entity's own dialog, with its history graph:
 ![Lademodus](screenshots/charge_mode_options_de.png)
 ![Konfigurationsdialog, Seite 1](screenshots/configure_options_de.png)
 ![Konfigurationsdialog, Seite 2: PV-Überschuss-Quellen](screenshots/configure_pv_sources_de.png)
-![Entität Ladestrom-Grenze](screenshots/entity_current_limit_de.png)
+![Entität Stromgrenze](screenshots/entity_current_limit_de.png)
 
 </details>
 

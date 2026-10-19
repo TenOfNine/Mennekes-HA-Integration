@@ -66,15 +66,16 @@ Alle Leistungen werden als positive Werte in W oder kW erwartet.
 | Bereich | Entity | Wofür |
 |---|---|---|
 | Steuerelemente | Lademodus | PV-Überschuss, Sofort, Aus oder Manuell (siehe unten). |
-| | Ladestrom-Grenze | Ladestrom von Hand setzen. 0 A heißt pausiert. |
+| | Stromgrenze | Ladestrom von Hand setzen. 0 A heißt pausiert. |
 | | Ladevorgang starten / pausieren | Startet mit dem Startladestrom bzw. pausiert mit dem Pausenwert. |
 | Sensoren | Ladeleistung, Status, Energie (aktuelle Ladung), Gesamtenergie | Messwerte der Wallbox. Die Gesamtenergie eignet sich für das Energie-Dashboard. |
 | | PV-Überschuss | Überschuss im 2-Minuten-Mittel. Nur mit PV-Quellen. |
-| Konfiguration | PV: … und Sofort: … | Einstellungen der PV-Regelung (siehe unten). Nur mit PV-Quellen. |
+| Konfiguration | PV Start-SoC, PV Stopp-SoC, PV Sperrzeit, PV Pufferzeit, Sofort: zurück zu PV | Einstellungen der PV-Regelung (siehe unten). Nur mit PV-Quellen. |
 | Diagnose | Laderegelung | Zeigt, was die Regelung gerade tut und warum. |
-| | Fehler, Firmware-Version | Für die Fehlersuche. |
+| | Fehler | „Kein Fehler“, der aktive Fehler im Klartext oder „Mehrere Fehler“. Die Attribute listen alle aktiven Fehler. |
+| | Firmware-Version | Für die Fehlersuche und Supportanfragen. |
 
-Mit aktiver Phasenumschaltung kommt die **Ladeleistung-Grenze** (W) dazu.
+Mit aktiver Phasenumschaltung kommt die **Leistungsgrenze** (W) dazu.
 
 ## 5. Laden im Alltag: der Lademodus
 
@@ -85,17 +86,17 @@ Mit aktiver Phasenumschaltung kommt die **Ladeleistung-Grenze** (W) dazu.
 | **PV-Überschuss** | Die Integration startet, regelt und stoppt die Ladung nach dem Überschuss (siehe nächster Abschnitt). |
 | **Sofort** | Lädt mit dem maximalen Ladestrom. Ist das Auto voll, wechselt der Modus auf PV-Überschuss (abschaltbar). |
 | **Aus** | Hält den Ladestrom auf 0 A. |
-| **Manuell** *(Standard)* | Die Integration greift nicht selbst ein. Du steuerst über die Buttons und die Ladestrom-Grenze. |
+| **Manuell** *(Standard)* | Die Integration greift nicht selbst ein. Du steuerst über die Buttons und die Stromgrenze. |
 
 - **Manuell eingreifen:** „Ladevorgang starten“, „Ladevorgang pausieren“ oder eine Änderung der
-  Ladestrom-Grenze schalten den Modus auf **Manuell**. Sonst würde die Regelung deine Änderung
+  Stromgrenze schalten den Modus auf **Manuell**. Sonst würde die Regelung deine Änderung
   innerhalb von 30 s wieder überschreiben.
 - **Ausstecken:** Steht der Status mindestens 10 s auf „Frei“, geht „Manuell“ zurück auf
   **PV-Überschuss** (nur mit PV-Quellen). „Sofort“ und „Aus“ bleiben, bis du sie änderst.
 - **Auto voll bei „Sofort“:** Die Wallbox kennt den Akkustand des Autos nicht. Als voll gilt das
   Auto, wenn es 10 Minuten lang selbst pausiert („Pausiert (Fahrzeug)“), obwohl Strom angeboten
   wird. Pausiert dein Auto auch aus anderen Gründen, z. B. wegen eines eigenen Ladetimers, den
-  Schalter **„Sofort: danach zurück zu PV-Überschuss“** ausschalten.
+  Schalter **„Sofort: zurück zu PV“** ausschalten.
 
 ## 6. So entscheidet die PV-Regelung
 
@@ -118,11 +119,11 @@ Die Einstellungen dazu findest du auf der Geräteseite unter **Konfiguration**:
 
 | Einstellung | Standard | Bedeutung |
 |---|---|---|
-| PV: Start ab Speicher-SoC | 60 % | Unter diesem Ladestand startet keine PV-Ladung. |
-| PV: Stopp unter Speicher-SoC | 50 % | Darunter stoppt die Ladung. Muss unter dem Start-SoC liegen. |
-| PV: Mindestabstand Start/Stopp | 90 s | Mindestzeit zwischen zwei Start- oder Stoppbefehlen, schont Auto und Wallbox. |
-| PV: Pufferzeit unter 6 A | 10 min | So lange darf der Speicher bei weniger als 6 A Überschuss aushelfen. |
-| Sofort: danach zurück zu PV-Überschuss | an | Wechselt von „Sofort“ auf PV-Überschuss, wenn das Auto voll ist. |
+| PV Start-SoC | 60 % | Unter diesem Ladestand startet keine PV-Ladung. |
+| PV Stopp-SoC | 50 % | Darunter stoppt die Ladung. Muss unter dem Start-SoC liegen. |
+| PV Sperrzeit | 90 s | Mindestzeit zwischen zwei Start- oder Stoppbefehlen, schont Auto und Wallbox. |
+| PV Pufferzeit | 10 min | So lange darf der Speicher bei weniger als 6 A Überschuss aushelfen. |
+| Sofort: zurück zu PV | an | Wechselt von „Sofort“ auf PV-Überschuss, wenn das Auto voll ist. |
 
 ## 7. Was zeigt die „Laderegelung“?
 
@@ -132,9 +133,9 @@ Die Einstellungen dazu findest du auf der Geräteseite unter **Konfiguration**:
 | Kein Fahrzeug | Kein Auto eingesteckt. |
 | Wartet auf Speicher-SoC | Der Speicher hat den Start-SoC noch nicht erreicht. |
 | Wartet auf Überschuss | Weniger als 1380 W Überschuss im 2-Minuten-Mittel. |
-| Lädt mit PV-Überschuss | Die Regelung lädt und führt den Strom nach. |
+| Lädt mit PV | Die Regelung lädt und führt den Strom nach dem Überschuss nach. |
 | Puffert aus Speicher | Weniger als 6 A Überschuss, die Pufferzeit läuft. |
-| Mindestabstand läuft | Ein Start oder Stopp ist fällig, wartet aber noch auf den Mindestabstand. |
+| Sperrzeit läuft | Ein Start oder Stopp ist fällig, wartet aber noch das Ende der Sperrzeit ab. |
 | Wartet auf Daten | Eine Quelle, der SoC oder die Wallbox ist nicht verfügbar, oder die Integration läuft noch keine Minute. |
 | Keine PV-Quellen konfiguriert | PV-Überschuss ist gewählt, aber auf Seite 2 von „Konfigurieren“ fehlt die Netzeinspeisung. |
 | Phasenumschaltung aktiv | Die Phasenumschaltung steht nicht auf „Deaktiviert“, die Regelung bleibt aus. |
@@ -145,7 +146,7 @@ Die Einstellungen dazu findest du auf der Geräteseite unter **Konfiguration**:
 - **„Ladevorgang starten“ wirkt nicht:** In der Wallbox „Modbus Slave Allow Start/Stop
   Transaction“ und „kostenloses Laden“ prüfen (Schritt 1).
 - **Der Lademodus springt auf „Manuell“:** Das ist gewollt, sobald du selbst startest, pausierst
-  oder die Ladestrom-Grenze änderst.
+  oder die Stromgrenze änderst.
 - **PV-Überschuss lädt nicht los:** Die Laderegelung zeigt den Grund. Die Attribute des Sensors
   „PV-Überschuss“ zeigen die einzelnen Werte der letzten Messung, die du mit der App deines
   Wechselrichters vergleichen kannst.

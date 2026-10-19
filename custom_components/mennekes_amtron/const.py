@@ -197,6 +197,11 @@ ERROR_FLAGS = {
     20: "err_incorrect_phase_installation",
     21: "err_no_power",
 }
+# The error sensor's states: no error, the one active flag, or a summary
+# when several are set (the sensor's attributes list all of them).
+ERROR_STATE_NONE = "no_error"
+ERROR_STATE_MULTIPLE = "multiple_errors"
+ERROR_STATES = [ERROR_STATE_NONE, *ERROR_FLAGS.values(), ERROR_STATE_MULTIPLE]
 
 # --- Meter values from the OCPP primary meter -----------------------------
 # Energy L2/L3 are never populated on any documented meter model (they
