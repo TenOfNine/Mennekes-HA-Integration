@@ -29,6 +29,7 @@ pymodbus dependency.
   **Settings → Devices & Services → Mennekes AMTRON → Configure** — no file edits, no restart.
   The start current is bounded between 6 A and the configured maximum current.
 - Optional **1-phase/3-phase switching** — see below.
+- Optional **PV surplus** measurement from your inverter's entities — see below.
 
 See [`custom_components/mennekes_amtron/`](custom_components/mennekes_amtron/) for the full
 entity list and register-level detail in code comments.
@@ -59,6 +60,33 @@ Modbus TCP Server Specification via secondary sources (community reports for AMT
 devices) rather than the primary manufacturer PDF. Only enable a non-default mode if your
 installation actually has the phase-switching relay, and verify behavior carefully against your
 own unit before relying on it.
+
+## PV surplus (measurement only)
+
+The first step towards PV surplus charging. It **only measures**; nothing is switched yet.
+
+On the second page of **Configure**, select entities from other integrations (e.g. your
+inverter):
+
+| Field | Notes |
+|---|---|
+| Grid feed-in | One or more; they are added up (e.g. inverter feed-in plus balcony power plants). Don't add a plant your grid meter already measures, or it counts twice. |
+| Grid import | Optional, 0 W if empty. |
+| Battery discharge power | Optional, 0 W if empty (no home battery). |
+| Battery state of charge | Not used yet; needed for surplus charging later. |
+
+All values are expected as positive power values in W, kW or MW (a sensor without a unit is read
+as W). With at least one feed-in entity configured, a **PV surplus** (W) sensor appears:
+
+`feed-in − grid import − battery discharge + wallbox charging power`, sampled every 10 s and
+averaged over the last 2 minutes, which rides out short shading. The wallbox's own charging power
+is added to each sample *before* averaging: added afterwards, the average would still show the
+old surplus for up to 2 minutes after every current change, and a controller acting on it would
+overshoot. Battery *charging* is not added back, so the home battery keeps priority over the car.
+
+If any configured source (or the wallbox) is unavailable, that sample is skipped rather than
+counted as 0 W. The sensor's attributes show the last sample's individual values, so you can
+check the calculation against your inverter's app before anything acts on it.
 
 ## Screenshots
 

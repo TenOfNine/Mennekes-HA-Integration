@@ -34,6 +34,22 @@
         "data_description": {
           "phase_mode": "Only relevant if your wallbox has phase-switching hardware installed. Leave \"Disabled\" if unsure - see README."
         }
+      },
+      "pv_sources": {
+        "title": "PV surplus: sources",
+        "description": "Optional. Entities from other integrations (e.g. your inverter) the PV surplus is calculated from: feed-in minus grid import minus battery discharge plus the wallbox's own charging power, averaged over 2 minutes. All values are expected as positive power values (W or kW). Without a feed-in entity nothing is calculated. Nothing is switched yet: the result only shows up as the \"PV surplus\" sensor.",
+        "data": {
+          "pv_feed_in_entities": "Grid feed-in",
+          "pv_grid_import_entity": "Grid import",
+          "pv_battery_discharge_entity": "Battery discharge power",
+          "pv_battery_soc_entity": "Battery state of charge"
+        },
+        "data_description": {
+          "pv_feed_in_entities": "Several entities are added up, e.g. the inverter's feed-in plus balcony power plants. Don't add a plant whose output your grid meter already includes, or it counts twice.",
+          "pv_grid_import_entity": "Counts as 0 W if left empty.",
+          "pv_battery_discharge_entity": "Counts as 0 W if left empty (no home battery).",
+          "pv_battery_soc_entity": "Not used yet; needed for surplus charging in a later version."
+        }
       }
     },
     "error": {
@@ -81,6 +97,9 @@
       },
       "firmware_version": {
         "name": "Firmware version"
+      },
+      "pv_surplus": {
+        "name": "PV surplus"
       }
     },
     "number": {

@@ -14,7 +14,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up AMTRON control buttons from a config entry."""
-    coordinator: AmtronCoordinator = entry.runtime_data
+    coordinator: AmtronCoordinator = entry.runtime_data.coordinator
     async_add_entities(
         [
             AmtronStartButton(coordinator, entry),

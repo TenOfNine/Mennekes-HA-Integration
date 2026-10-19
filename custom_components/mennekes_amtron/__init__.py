@@ -1,6 +1,8 @@
 """The Mennekes AMTRON Charge Control (ECU) integration."""
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, Platform
 from homeassistant.core import HomeAssistant
@@ -9,6 +11,9 @@ from .const import (
     CONF_MAX_CURRENT_A,
     CONF_PAUSE_CURRENT_A,
     CONF_PHASE_MODE,
+    CONF_PV_BATTERY_DISCHARGE_ENTITY,
+    CONF_PV_FEED_IN_ENTITIES,
+    CONF_PV_GRID_IMPORT_ENTITY,
     CONF_START_CURRENT_A,
     CONF_UNIT_ID,
     DEFAULT_MAX_CURRENT_A,
@@ -19,8 +24,17 @@ from .const import (
 )
 from .coordinator import AmtronCoordinator
 from .modbus_client import AmtronModbusClient
+from .pv_surplus import PvSurplusTracker
 
 PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.NUMBER, Platform.BUTTON]
+
+
+@dataclass
+class AmtronRuntimeData:
+    """What a config entry's platforms share (entry.runtime_data)."""
+
+    coordinator: AmtronCoordinator
+    pv_surplus: PvSurplusTracker | None  # None until PV feed-in entities are configured
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -45,7 +59,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # automatically (e.g. wallbox briefly offline, network hiccup, ...).
     await coordinator.async_config_entry_first_refresh()
 
-    entry.runtime_data = coordinator
+    pv_surplus = None
+    if feed_in_entities := entry.options.get(CONF_PV_FEED_IN_ENTITIES):
+        pv_surplus = PvSurplusTracker(
+            hass,
+            coordinator,
+            feed_in_entities,
+            grid_import_entity=entry.options.get(CONF_PV_GRID_IMPORT_ENTITY),
+            battery_discharge_entity=entry.options.get(CONF_PV_BATTERY_DISCHARGE_ENTITY),
+        )
+        entry.async_on_unload(pv_surplus.async_start())
+
+    entry.runtime_data = AmtronRuntimeData(coordinator=coordinator, pv_surplus=pv_surplus)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Reload the entry (re-running this function with the new values) when

@@ -34,6 +34,22 @@
         "data_description": {
           "phase_mode": "Nur relevant, wenn deine Wallbox über Phasenumschaltungs-Hardware verfügt. Im Zweifel bei \"Deaktiviert\" belassen - siehe README."
         }
+      },
+      "pv_sources": {
+        "title": "PV-Überschuss: Quellen",
+        "description": "Optional. Entities anderer Integrationen (z. B. des Wechselrichters), aus denen der PV-Überschuss berechnet wird: Einspeisung minus Netzbezug minus Speicher-Entladung plus die Ladeleistung der Wallbox, gemittelt über 2 Minuten. Alle Werte werden als positive Leistung erwartet (W oder kW). Ohne Einspeise-Entity wird nichts berechnet. Geschaltet wird noch nichts: Das Ergebnis erscheint nur im Sensor \"PV-Überschuss\".",
+        "data": {
+          "pv_feed_in_entities": "Netzeinspeisung",
+          "pv_grid_import_entity": "Netzbezug",
+          "pv_battery_discharge_entity": "Speicher-Entladeleistung",
+          "pv_battery_soc_entity": "Speicher-Ladestand (SoC)"
+        },
+        "data_description": {
+          "pv_feed_in_entities": "Mehrere Entities werden addiert, z. B. Einspeisung des Wechselrichters plus Balkonkraftwerke. Keine Anlage hinzufügen, deren Leistung dein Netzzähler schon mitmisst, sonst zählt sie doppelt.",
+          "pv_grid_import_entity": "Leer gelassen zählt als 0 W.",
+          "pv_battery_discharge_entity": "Leer gelassen zählt als 0 W (kein Hausspeicher).",
+          "pv_battery_soc_entity": "Wird noch nicht verwendet; erst für das Überschussladen in einer späteren Version."
+        }
       }
     },
     "error": {
@@ -81,6 +97,9 @@
       },
       "firmware_version": {
         "name": "Firmware-Version"
+      },
+      "pv_surplus": {
+        "name": "PV-Überschuss"
       }
     },
     "number": {

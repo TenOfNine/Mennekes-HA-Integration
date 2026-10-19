@@ -31,10 +31,16 @@ CONF_MAX_CURRENT_A = "max_current_a"
 CONF_PAUSE_CURRENT_A = "pause_current_a"
 CONF_START_CURRENT_A = "start_current_a"
 CONF_PHASE_MODE = "phase_mode"
+CONF_PV_FEED_IN_ENTITIES = "pv_feed_in_entities"
+CONF_PV_GRID_IMPORT_ENTITY = "pv_grid_import_entity"
+CONF_PV_BATTERY_DISCHARGE_ENTITY = "pv_battery_discharge_entity"
+CONF_PV_BATTERY_SOC_ENTITY = "pv_battery_soc_entity"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT_ID = 255  # empirically confirmed by installers; spec allows 1-255
-DEFAULT_SCAN_INTERVAL = 15  # seconds; change here if you want faster/slower polling
+# Seconds. Matches PV_SAMPLE_INTERVAL_S so each PV-surplus sample sees a
+# wallbox power reading at most one sample old.
+DEFAULT_SCAN_INTERVAL = 10
 REQUEST_TIMEOUT = 5  # seconds per Modbus request
 
 MANUFACTURER = "MENNEKES"
@@ -85,6 +91,10 @@ NOMINAL_PHASE_VOLTAGE_V = 230
 # rather than to a current below the spec minimum.
 MIN_POWER_1PHASE_W = MIN_CURRENT_A * NOMINAL_PHASE_VOLTAGE_V  # 1380 W
 MIN_POWER_3PHASE_W = MIN_CURRENT_A * 3 * NOMINAL_PHASE_VOLTAGE_V  # 4140 W
+
+# --- PV surplus (from other integrations' entities, not the wallbox) ------
+PV_SAMPLE_INTERVAL_S = 10
+PV_AVERAGE_WINDOW_S = 120  # rides out short shading instead of reacting to every cloud
 
 # --- General system info -------------------------------------------------
 REG_FIRMWARE_VERSION = 100  # 100-101, 32-bit - NOT a number, see coordinator.py

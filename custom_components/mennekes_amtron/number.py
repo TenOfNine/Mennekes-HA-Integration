@@ -23,7 +23,7 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the AMTRON number entities from a config entry."""
-    coordinator: AmtronCoordinator = entry.runtime_data
+    coordinator: AmtronCoordinator = entry.runtime_data.coordinator
     entities: list[NumberEntity] = [AmtronCurrentLimitNumber(coordinator, entry)]
     if coordinator.phase_mode != PHASE_MODE_DISABLED:
         entities.append(AmtronPowerLimitNumber(coordinator, entry))

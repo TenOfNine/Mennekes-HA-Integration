@@ -141,25 +141,54 @@ def test_start_current_option_is_bounded_by_the_configured_max_current():
     run(body())
 
 
-def test_saving_options_creates_an_entry_with_the_submitted_data():
+_WALLBOX_PAGE = {
+    c.CONF_MAX_CURRENT_A: 16,
+    c.CONF_PAUSE_CURRENT_A: 6,
+    c.CONF_START_CURRENT_A: 10,
+    c.CONF_PHASE_MODE: c.PHASE_MODE_SINGLE_PHASE,
+}
+
+
+def test_saving_options_creates_an_entry_with_both_pages_data():
     async def body():
         flow = AmtronOptionsFlow()
         flow.config_entry = _StubEntryWithOptions()
-        result = await flow.async_step_init(
+        first = await flow.async_step_init(dict(_WALLBOX_PAGE))
+        assert first["type"] == "form"
+        assert first["step_id"] == "pv_sources"
+
+        pv_page = {
+            c.CONF_PV_FEED_IN_ENTITIES: ["sensor.sma_feed_in", "sensor.balcony_1"],
+            c.CONF_PV_GRID_IMPORT_ENTITY: "sensor.sma_grid_import",
+            c.CONF_PV_BATTERY_DISCHARGE_ENTITY: "sensor.sma_battery_discharge",
+            c.CONF_PV_BATTERY_SOC_ENTITY: "sensor.sma_battery_soc",
+        }
+        result = await flow.async_step_pv_sources(pv_page)
+        assert result["type"] == "create_entry"
+        assert result["data"] == {**_WALLBOX_PAGE, **pv_page}
+
+    run(body())
+
+
+def test_pv_sources_page_prefills_and_allows_clearing_previous_entities():
+    async def body():
+        flow = AmtronOptionsFlow()
+        flow.config_entry = _StubEntryWithOptions(
             {
-                c.CONF_MAX_CURRENT_A: 16,
-                c.CONF_PAUSE_CURRENT_A: 6,
-                c.CONF_START_CURRENT_A: 10,
-                c.CONF_PHASE_MODE: c.PHASE_MODE_SINGLE_PHASE,
+                c.CONF_PV_FEED_IN_ENTITIES: ["sensor.sma_feed_in"],
+                c.CONF_PV_GRID_IMPORT_ENTITY: "sensor.sma_grid_import",
             }
         )
-        assert result["type"] == "create_entry"
-        assert result["data"] == {
-            c.CONF_MAX_CURRENT_A: 16,
-            c.CONF_PAUSE_CURRENT_A: 6,
-            c.CONF_START_CURRENT_A: 10,
-            c.CONF_PHASE_MODE: c.PHASE_MODE_SINGLE_PHASE,
-        }
+        await flow.async_step_init(dict(_WALLBOX_PAGE))
+        form = await flow.async_step_pv_sources()
+        suggested = {str(key): key.description["suggested_value"] for key in form["data_schema"].schema}
+        assert suggested[c.CONF_PV_FEED_IN_ENTITIES] == ["sensor.sma_feed_in"]
+        assert suggested[c.CONF_PV_GRID_IMPORT_ENTITY] == "sensor.sma_grid_import"
+        assert suggested[c.CONF_PV_BATTERY_SOC_ENTITY] is None
+
+        # Submitting with the grid-import field emptied drops it from the options.
+        result = await flow.async_step_pv_sources({c.CONF_PV_FEED_IN_ENTITIES: ["sensor.sma_feed_in"]})
+        assert c.CONF_PV_GRID_IMPORT_ENTITY not in result["data"]
 
     run(body())
 
