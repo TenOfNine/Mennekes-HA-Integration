@@ -31,10 +31,16 @@ CONF_MAX_CURRENT_A = "max_current_a"
 CONF_PAUSE_CURRENT_A = "pause_current_a"
 CONF_START_CURRENT_A = "start_current_a"
 CONF_PHASE_MODE = "phase_mode"
+CONF_PV_FEED_IN_ENTITIES = "pv_feed_in_entities"
+CONF_PV_GRID_IMPORT_ENTITY = "pv_grid_import_entity"
+CONF_PV_BATTERY_DISCHARGE_ENTITY = "pv_battery_discharge_entity"
+CONF_PV_BATTERY_SOC_ENTITY = "pv_battery_soc_entity"
 
 DEFAULT_PORT = 502
 DEFAULT_UNIT_ID = 255  # empirically confirmed by installers; spec allows 1-255
-DEFAULT_SCAN_INTERVAL = 15  # seconds; change here if you want faster/slower polling
+# Seconds. Matches PV_SAMPLE_INTERVAL_S so each PV-surplus sample sees a
+# wallbox power reading at most one sample old.
+DEFAULT_SCAN_INTERVAL = 10
 REQUEST_TIMEOUT = 5  # seconds per Modbus request
 
 MANUFACTURER = "MENNEKES"
@@ -86,6 +92,37 @@ NOMINAL_PHASE_VOLTAGE_V = 230
 MIN_POWER_1PHASE_W = MIN_CURRENT_A * NOMINAL_PHASE_VOLTAGE_V  # 1380 W
 MIN_POWER_3PHASE_W = MIN_CURRENT_A * 3 * NOMINAL_PHASE_VOLTAGE_V  # 4140 W
 
+# --- PV surplus (from other integrations' entities, not the wallbox) ------
+PV_SAMPLE_INTERVAL_S = 10
+PV_AVERAGE_WINDOW_S = 120  # rides out short shading instead of reacting to every cloud
+
+# --- Charge modes and the PV surplus controller ---------------------------
+MODE_PV_SURPLUS = "pv_surplus"
+MODE_IMMEDIATE = "immediate"
+MODE_OFF = "off"
+MODE_MANUAL = "manual"
+CHARGE_MODES = [MODE_PV_SURPLUS, MODE_IMMEDIATE, MODE_OFF, MODE_MANUAL]
+DEFAULT_CHARGE_MODE = MODE_MANUAL  # existing installs behave as before until a mode is picked
+
+PV_CONTROL_INTERVAL_S = 30
+# No decisions on a few seconds of data right after a (re)start: wait for
+# half an averaging window.
+PV_MIN_SAMPLES = PV_AVERAGE_WINDOW_S // PV_SAMPLE_INTERVAL_S // 2
+PV_UNPLUG_RESET_S = 10
+# The car charges on one phase, so each Amp is worth one phase's voltage.
+PV_WATTS_PER_AMP = NOMINAL_PHASE_VOLTAGE_V
+
+DEFAULT_PV_SOC_START_PCT = 60
+DEFAULT_PV_SOC_STOP_PCT = 50
+DEFAULT_PV_MIN_SWITCH_INTERVAL_S = 90
+DEFAULT_PV_BUFFER_TIME_MIN = 10
+
+# "Immediate" counts the car as full once it has paused charging itself
+# (status suspended_ev, so current is offered) for this long: the wallbox
+# doesn't know the car's state of charge.
+IMMEDIATE_DONE_AFTER_S = 600
+DEFAULT_IMMEDIATE_AUTO_RETURN = True
+
 # --- General system info -------------------------------------------------
 REG_FIRMWARE_VERSION = 100  # 100-101, 32-bit - NOT a number, see coordinator.py
 FIRMWARE_BLOCK_START = REG_FIRMWARE_VERSION
@@ -125,6 +162,13 @@ CP_STATUS = {
 # hardware: car left plugged in after a paused session, "Start" pressed the
 # next day); raising HEMS_CURRENT_LIMIT alone resumes the existing session.
 SESSION_ACTIVE_STATUSES = frozenset({"charging", "suspended_evse", "suspended_ev"})
+# Authorized and not held back by the wallbox (the car may still pause itself).
+CHARGING_RELEASED_STATUSES = frozenset({"charging", "suspended_ev"})
+# Statuses the charge controller acts on. Anything else (faulted, occupied,
+# reserved, ...) makes it hold still until the status is one of these again.
+CONTROLLABLE_STATUSES = frozenset(
+    {"available", "preparing", "charging", "suspended_evse", "suspended_ev", "finishing"}
+)
 
 # Registers 111-112 ("ERROR_CODES_4"), one bit per condition (bits 0-21 only;
 # all higher bits, and all of ERROR_CODES_1-3, are reserved). Multiple bits

@@ -29,6 +29,7 @@ pymodbus dependency.
   **Settings → Devices & Services → Mennekes AMTRON → Configure** — no file edits, no restart.
   The start current is bounded between 6 A and the configured maximum current.
 - Optional **1-phase/3-phase switching** — see below.
+- Optional **PV surplus charging** with home-battery priority — see below.
 
 See [`custom_components/mennekes_amtron/`](custom_components/mennekes_amtron/) for the full
 entity list and register-level detail in code comments.
@@ -59,6 +60,85 @@ Modbus TCP Server Specification via secondary sources (community reports for AMT
 devices) rather than the primary manufacturer PDF. Only enable a non-default mode if your
 installation actually has the phase-switching relay, and verify behavior carefully against your
 own unit before relying on it.
+
+## PV surplus charging
+
+Charges the car from PV surplus, with the home battery taking priority. Configured in two places:
+the source entities on the second page of **Configure**, and the charge mode plus thresholds as
+entities on the device page.
+
+### Sources
+
+| Field | Notes |
+|---|---|
+| Grid feed-in | One or more; they are added up (e.g. inverter feed-in plus balcony power plants). Don't add a plant your grid meter already measures, or it counts twice. |
+| Grid import | Optional, 0 W if empty. |
+| Battery discharge power | Optional, 0 W if empty (no home battery). |
+| Battery state of charge | Optional. Leave empty without a home battery; the SoC thresholds are then ignored. |
+
+All values are expected as positive power values in W, kW or MW (a sensor without a unit is read
+as W). With at least one feed-in entity configured, a **PV surplus** (W) sensor appears:
+
+`feed-in − grid import − battery discharge + wallbox charging power`, sampled every 10 s and
+averaged over the last 2 minutes, which rides out short shading. The wallbox's own charging power
+is added to each sample *before* averaging: added afterwards, the average would still show the
+old surplus for up to 2 minutes after every current change, and the controller would overshoot.
+Battery *charging* is not added back, so the home battery keeps priority over the car. If any
+source (or the wallbox) is unavailable, that sample is skipped rather than counted as 0 W; the
+sensor's attributes show the last sample's individual values.
+
+### Charge mode
+
+The **Charge mode** select entity:
+
+| Mode | Effect |
+|---|---|
+| PV surplus | The controller below starts, stops and sets the current. |
+| Immediate | Charges at the configured maximum current; optionally back to PV surplus once the car is full (below). |
+| Off | Holds the current at 0 A. |
+| Manual *(default)* | The integration doesn't touch the wallbox on its own. |
+
+**Manual override:** pressing **Start charging** or **Pause charging**, or changing the
+**Charging current limit**, switches the mode to Manual - otherwise the controller would undo it
+within 30 s. The controller's own starts and stops don't. Unplugging the car (status "Available"
+for 10 s) switches Manual back to PV surplus; Immediate and Off stay until you change them.
+
+**Back from Immediate:** with *Immediate: back to PV surplus when full* on (the default), Immediate
+switches to PV surplus once the car is full. The wallbox doesn't know the car's state of charge,
+so "full" means the car has paused charging itself (status "Suspended (vehicle)") for 10 minutes
+while current was offered. A car that pauses on its own for other reasons (e.g. its own charging
+timer) counts as full too; turn the switch off then. PV surplus then takes over the session as at
+plug-in: it keeps it if the start condition holds and stops it otherwise.
+
+### PV surplus controller
+
+Runs every 30 s. It assumes the car charges on **one phase**, so each Amp is worth 230 W.
+
+- **Start** when the battery SoC is at or above *PV: start at battery SoC* (default 60 %) **and**
+  the 2-minute average is at least 1380 W (6 A).
+- **Current** = floor(average / 230 W), limited to 6 A … the configured maximum; written only when
+  it changes.
+- **Below 6 A** of surplus it keeps charging at 6 A from the battery for *PV: buffer time below
+  6 A* (default 10 min) to bridge clouds, then stops. The battery only buffers; it isn't drained
+  into the car.
+- **Stop** when the SoC falls below *PV: stop below battery SoC* (default 50 %); it restarts only
+  once the start SoC is reached again. The gap is the hysteresis, so the stop SoC must stay below
+  the start SoC.
+- At least *PV: minimum time between start/stop* (default 90 s) between two start or stop
+  commands. Picking a mode yourself acts at once.
+- If the wallbox starts charging on its own (e.g. at plug-in), the controller takes the session
+  over if the start condition holds and stops it otherwise - the start SoC applies to every
+  session.
+- If the wallbox status, the surplus average (needs at least 1 minute of samples) or the SoC is
+  unavailable, it does nothing and the last current stays.
+
+The **Charge control** diagnostic sensor shows what the controller is doing and why (e.g.
+"Waiting for battery SoC", "Buffering from battery"), with the target current as an attribute.
+The controller only works with **phase switching disabled**, since it controls the current
+register, not the power register.
+
+Stopping means writing 0 A: the wallbox has no Modbus command to end a session, so the session
+stays open and a restart only raises the current again.
 
 ## Screenshots
 

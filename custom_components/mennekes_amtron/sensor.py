@@ -7,26 +7,30 @@ from homeassistant.const import EntityCategory, UnitOfEnergy, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import CP_STATUS
+from .charge_controller import CONTROL_STATES, ChargeController
+from .const import CP_STATUS, PV_AVERAGE_WINDOW_S
 from .coordinator import AmtronCoordinator, AmtronData
 from .entity import AmtronEntity
+from .pv_surplus import PvSurplusTracker
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up AMTRON sensors from a config entry."""
-    coordinator: AmtronCoordinator = entry.runtime_data
-    async_add_entities(
-        [
-            AmtronPowerSensor(coordinator, entry),
-            AmtronStatusSensor(coordinator, entry),
-            AmtronSessionEnergySensor(coordinator, entry),
-            AmtronTotalEnergySensor(coordinator, entry),
-            AmtronErrorSensor(coordinator, entry),
-            AmtronFirmwareVersionSensor(coordinator, entry),
-        ]
-    )
+    coordinator: AmtronCoordinator = entry.runtime_data.coordinator
+    entities: list[SensorEntity] = [
+        AmtronPowerSensor(coordinator, entry),
+        AmtronStatusSensor(coordinator, entry),
+        AmtronSessionEnergySensor(coordinator, entry),
+        AmtronTotalEnergySensor(coordinator, entry),
+        AmtronErrorSensor(coordinator, entry),
+        AmtronFirmwareVersionSensor(coordinator, entry),
+    ]
+    if (pv_surplus := entry.runtime_data.pv_surplus) is not None:
+        entities.append(AmtronPvSurplusSensor(coordinator, entry, pv_surplus))
+    entities.append(AmtronChargeControlSensor(coordinator, entry, entry.runtime_data.controller))
+    async_add_entities(entities)
 
 
 class AmtronPowerSensor(AmtronEntity, SensorEntity):
@@ -149,3 +153,79 @@ class AmtronFirmwareVersionSensor(AmtronEntity, SensorEntity):
     def native_value(self) -> str | None:
         data: AmtronData = self.coordinator.data
         return data.firmware_version
+
+
+class AmtronPvSurplusSensor(AmtronEntity, SensorEntity):
+    """PV surplus averaged over PV_AVERAGE_WINDOW_S - see pv_surplus.py.
+
+    Read-only: it only reports what a surplus-charging controller would
+    regulate on. The latest sample's individual sources are attributes, so
+    the calculation can be checked against the inverter's own app.
+    """
+
+    _attr_translation_key = "pv_surplus"
+    _unique_id_suffix = "pv_surplus"
+    _attr_device_class = SensorDeviceClass.POWER
+    _attr_native_unit_of_measurement = UnitOfPower.WATT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_suggested_display_precision = 0
+    _attr_icon = "mdi:solar-power"
+
+    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry, tracker: PvSurplusTracker) -> None:
+        super().__init__(coordinator, entry)
+        self._tracker = tracker
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._tracker.async_add_listener(self.async_write_ha_state))
+
+    @property
+    def native_value(self) -> float | None:
+        average = self._tracker.average_w
+        return None if average is None else round(average)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        attributes: dict[str, object] = {
+            "samples_in_window": self._tracker.sample_count,
+            "window_s": PV_AVERAGE_WINDOW_S,
+        }
+        if (sample := self._tracker.last_sample) is not None:
+            attributes.update(
+                last_feed_in_w=round(sample.feed_in_w),
+                last_grid_import_w=round(sample.grid_import_w),
+                last_battery_discharge_w=round(sample.battery_discharge_w),
+                last_wallbox_power_w=round(sample.wallbox_power_w),
+                last_surplus_w=round(sample.surplus_w),
+            )
+        return attributes
+
+
+class AmtronChargeControlSensor(AmtronEntity, SensorEntity):
+    """What the charge controller is doing and why (see charge_controller.py)."""
+
+    _attr_translation_key = "charge_control"
+    _unique_id_suffix = "charge_control"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = CONTROL_STATES
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:state-machine"
+
+    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry, controller: ChargeController) -> None:
+        super().__init__(coordinator, entry)
+        self._controller = controller
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(self._controller.async_add_listener(self.async_write_ha_state))
+
+    @property
+    def native_value(self) -> str:
+        return self._controller.state
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object]:
+        return {
+            "target_current_a": self._controller.target_current_a,
+            "released_by_controller": self._controller.released,
+        }

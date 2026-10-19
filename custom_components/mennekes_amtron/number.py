@@ -1,9 +1,11 @@
 """Number platform for Mennekes AMTRON Charge Control (ECU) - HEMS current/power limit."""
 from __future__ import annotations
 
-from homeassistant.components.number import NumberEntity, NumberMode
+from dataclasses import dataclass
+
+from homeassistant.components.number import NumberEntity, NumberMode, RestoreNumber
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfElectricCurrent, UnitOfPower
+from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfElectricCurrent, UnitOfPower, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -15,18 +17,41 @@ from .const import (
     PHASE_MODE_DISABLED,
     PHASE_MODE_SINGLE_PHASE,
 )
+from .charge_controller import ChargeController
 from .coordinator import AmtronCoordinator, AmtronData
 from .entity import AmtronEntity
+
+
+@dataclass(frozen=True)
+class _PvSetting:
+    key: str  # attribute of charge_controller.PvSettings
+    translation_key: str
+    unit: str
+    min_value: int
+    max_value: int
+    icon: str
+
+
+_PV_SETTINGS = (
+    _PvSetting("soc_start_pct", "pv_soc_start", PERCENTAGE, 0, 100, "mdi:battery-arrow-up"),
+    _PvSetting("soc_stop_pct", "pv_soc_stop", PERCENTAGE, 0, 100, "mdi:battery-arrow-down"),
+    _PvSetting("min_switch_interval_s", "pv_min_switch_interval", UnitOfTime.SECONDS, 30, 600, "mdi:timer-sand"),
+    _PvSetting("buffer_time_min", "pv_buffer_time", UnitOfTime.MINUTES, 0, 60, "mdi:battery-clock"),
+)
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the AMTRON number entities from a config entry."""
-    coordinator: AmtronCoordinator = entry.runtime_data
-    entities: list[NumberEntity] = [AmtronCurrentLimitNumber(coordinator, entry)]
+    runtime = entry.runtime_data
+    coordinator: AmtronCoordinator = runtime.coordinator
+    controller: ChargeController = runtime.controller
+    entities: list[NumberEntity] = [AmtronCurrentLimitNumber(coordinator, entry, controller)]
     if coordinator.phase_mode != PHASE_MODE_DISABLED:
-        entities.append(AmtronPowerLimitNumber(coordinator, entry))
+        entities.append(AmtronPowerLimitNumber(coordinator, entry, controller))
+    if controller.has_pv_sources:
+        entities.extend(AmtronPvSettingNumber(coordinator, entry, controller, setting) for setting in _PV_SETTINGS)
     async_add_entities(entities)
 
 
@@ -51,8 +76,9 @@ class AmtronCurrentLimitNumber(AmtronEntity, NumberEntity):
     _attr_mode = NumberMode.SLIDER
     _attr_icon = "mdi:current-ac"
 
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry, controller: ChargeController) -> None:
         super().__init__(coordinator, entry)
+        self._controller = controller
         self._attr_native_max_value = coordinator.max_current_a
 
     @property
@@ -67,7 +93,9 @@ class AmtronCurrentLimitNumber(AmtronEntity, NumberEntity):
         return {"recommended_min_a": MIN_CURRENT_A}
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_set_current_limit(int(value))
+        # A manual override: otherwise the PV controller would overwrite
+        # the value again within one control cycle.
+        await self._controller.async_manual_action(lambda: self.coordinator.async_set_current_limit(int(value)))
 
 
 class AmtronPowerLimitNumber(AmtronEntity, NumberEntity):
@@ -91,8 +119,9 @@ class AmtronPowerLimitNumber(AmtronEntity, NumberEntity):
     _attr_mode = NumberMode.SLIDER
     _attr_icon = "mdi:transmission-tower"
 
-    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry) -> None:
+    def __init__(self, coordinator: AmtronCoordinator, entry: ConfigEntry, controller: ChargeController) -> None:
         super().__init__(coordinator, entry)
+        self._controller = controller
         phases = 1 if coordinator.phase_mode == PHASE_MODE_SINGLE_PHASE else 3
         self._attr_native_max_value = coordinator.max_current_a * phases * NOMINAL_PHASE_VOLTAGE_V
 
@@ -109,4 +138,43 @@ class AmtronPowerLimitNumber(AmtronEntity, NumberEntity):
         }
 
     async def async_set_native_value(self, value: float) -> None:
-        await self.coordinator.async_set_power_limit(int(value))
+        await self._controller.async_manual_action(lambda: self.coordinator.async_set_power_limit(int(value)))
+
+
+class AmtronPvSettingNumber(AmtronEntity, RestoreNumber):
+    """One PV surplus controller setting (SoC thresholds, intervals).
+
+    An entity rather than an options-flow field: changing options reloads
+    the integration, which would empty the 2-minute surplus average.
+    """
+
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_mode = NumberMode.BOX
+    _attr_native_step = 1
+
+    def __init__(
+        self, coordinator: AmtronCoordinator, entry: ConfigEntry, controller: ChargeController, setting: _PvSetting
+    ) -> None:
+        self._unique_id_suffix = setting.translation_key
+        super().__init__(coordinator, entry)
+        self._controller = controller
+        self._setting = setting
+        self._attr_translation_key = setting.translation_key
+        self._attr_native_unit_of_measurement = setting.unit
+        self._attr_native_min_value = setting.min_value
+        self._attr_native_max_value = setting.max_value
+        self._attr_icon = setting.icon
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        last = await self.async_get_last_number_data()
+        if last is not None and last.native_value is not None:
+            self._controller.restore_setting(self._setting.key, int(last.native_value))
+
+    @property
+    def native_value(self) -> int:
+        return getattr(self._controller.settings, self._setting.key)
+
+    async def async_set_native_value(self, value: float) -> None:
+        self._controller.update_setting(self._setting.key, int(value))
+        self.async_write_ha_state()

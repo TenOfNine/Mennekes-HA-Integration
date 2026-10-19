@@ -17,6 +17,10 @@ from .const import (
     CONF_MAX_CURRENT_A,
     CONF_PAUSE_CURRENT_A,
     CONF_PHASE_MODE,
+    CONF_PV_BATTERY_DISCHARGE_ENTITY,
+    CONF_PV_BATTERY_SOC_ENTITY,
+    CONF_PV_FEED_IN_ENTITIES,
+    CONF_PV_GRID_IMPORT_ENTITY,
     CONF_START_CURRENT_A,
     CONF_UNIT_ID,
     DEFAULT_MAX_CURRENT_A,
@@ -132,7 +136,8 @@ class AmtronOptionsFlow(OptionsFlow):
             if user_input[CONF_START_CURRENT_A] > user_input[CONF_MAX_CURRENT_A]:
                 errors["base"] = "start_current_above_max"
             else:
-                return self.async_create_entry(title="", data=user_input)
+                self._wallbox_options = user_input
+                return await self.async_step_pv_sources()
 
         configured_max = current_options.get(CONF_MAX_CURRENT_A, DEFAULT_MAX_CURRENT_A)
         options_schema = vol.Schema(
@@ -161,4 +166,40 @@ class AmtronOptionsFlow(OptionsFlow):
                 ),
             }
         )
-        return self.async_show_form(step_id="init", data_schema=options_schema, errors=errors)
+        return self.async_show_form(
+            step_id="init", data_schema=options_schema, errors=errors, last_step=False
+        )
+
+    async def async_step_pv_sources(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Second page: the other integrations' entities PV surplus is computed from.
+
+        All optional. Fields left empty are absent from user_input, so
+        building the entry from this page's input (not merged over the old
+        options) is what lets the user clear a previously chosen entity.
+        """
+        if user_input is not None:
+            return self.async_create_entry(title="", data={**self._wallbox_options, **user_input})
+
+        current_options = self.config_entry.options
+        sensor = selector.EntitySelectorConfig(domain="sensor")
+
+        def suggested(key: str) -> dict[str, Any]:
+            return {"suggested_value": current_options.get(key)}
+
+        pv_schema = vol.Schema(
+            {
+                vol.Optional(CONF_PV_FEED_IN_ENTITIES, description=suggested(CONF_PV_FEED_IN_ENTITIES)): (
+                    selector.EntitySelector(selector.EntitySelectorConfig(domain="sensor", multiple=True))
+                ),
+                vol.Optional(CONF_PV_GRID_IMPORT_ENTITY, description=suggested(CONF_PV_GRID_IMPORT_ENTITY)): (
+                    selector.EntitySelector(sensor)
+                ),
+                vol.Optional(
+                    CONF_PV_BATTERY_DISCHARGE_ENTITY, description=suggested(CONF_PV_BATTERY_DISCHARGE_ENTITY)
+                ): selector.EntitySelector(sensor),
+                vol.Optional(CONF_PV_BATTERY_SOC_ENTITY, description=suggested(CONF_PV_BATTERY_SOC_ENTITY)): (
+                    selector.EntitySelector(sensor)
+                ),
+            }
+        )
+        return self.async_show_form(step_id="pv_sources", data_schema=pv_schema)

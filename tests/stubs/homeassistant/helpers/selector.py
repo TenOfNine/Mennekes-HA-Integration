@@ -38,3 +38,19 @@ class SelectSelector:
         if data not in self._allowed_values():
             raise vol.Invalid(f"value {data!r} is not a valid option")
         return data
+
+
+@dataclass
+class EntitySelectorConfig:
+    domain: str | list[str] | None = None
+    multiple: bool = False
+
+
+class EntitySelector:
+    def __init__(self, config: EntitySelectorConfig) -> None:
+        self.config = config
+
+    def __call__(self, data):
+        if self.config.multiple and not isinstance(data, list):
+            raise vol.Invalid("expected a list of entity IDs")
+        return data

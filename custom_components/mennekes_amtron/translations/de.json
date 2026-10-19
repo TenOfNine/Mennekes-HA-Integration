@@ -34,6 +34,22 @@
         "data_description": {
           "phase_mode": "Nur relevant, wenn deine Wallbox über Phasenumschaltungs-Hardware verfügt. Im Zweifel bei \"Deaktiviert\" belassen - siehe README."
         }
+      },
+      "pv_sources": {
+        "title": "PV-Überschuss: Quellen",
+        "description": "Optional. Entities anderer Integrationen (z. B. des Wechselrichters), aus denen der PV-Überschuss berechnet wird: Einspeisung minus Netzbezug minus Speicher-Entladung plus die Ladeleistung der Wallbox, gemittelt über 2 Minuten. Alle Werte werden als positive Leistung erwartet (W oder kW). Ohne Einspeise-Entity wird nichts berechnet, und der Lademodus \"PV-Überschuss\" bleibt wirkungslos.",
+        "data": {
+          "pv_feed_in_entities": "Netzeinspeisung",
+          "pv_grid_import_entity": "Netzbezug",
+          "pv_battery_discharge_entity": "Speicher-Entladeleistung",
+          "pv_battery_soc_entity": "Speicher-Ladestand (SoC)"
+        },
+        "data_description": {
+          "pv_feed_in_entities": "Mehrere Entities werden addiert, z. B. Einspeisung des Wechselrichters plus Balkonkraftwerke. Keine Anlage hinzufügen, deren Leistung dein Netzzähler schon mitmisst, sonst zählt sie doppelt.",
+          "pv_grid_import_entity": "Leer gelassen zählt als 0 W.",
+          "pv_battery_discharge_entity": "Leer gelassen zählt als 0 W (kein Hausspeicher).",
+          "pv_battery_soc_entity": "Der Lademodus \"PV-Überschuss\" startet ab dem Start-SoC und stoppt unter dem Stopp-SoC. Ohne Hausspeicher leer lassen."
+        }
       }
     },
     "error": {
@@ -81,6 +97,27 @@
       },
       "firmware_version": {
         "name": "Firmware-Version"
+      },
+      "pv_surplus": {
+        "name": "PV-Überschuss"
+      },
+      "charge_control": {
+        "name": "Laderegelung",
+        "state": {
+          "manual": "Manuell",
+          "off": "Aus",
+          "immediate": "Sofortladen",
+          "not_connected": "Kein Fahrzeug",
+          "no_data": "Wartet auf Daten",
+          "no_sources": "Keine PV-Quellen konfiguriert",
+          "phase_switching_enabled": "Phasenumschaltung aktiv",
+          "waiting_for_soc": "Wartet auf Speicher-SoC",
+          "waiting_for_surplus": "Wartet auf Überschuss",
+          "charging_pv": "Lädt mit PV-Überschuss",
+          "buffering": "Puffert aus Speicher",
+          "min_interval": "Mindestabstand läuft",
+          "error": "Fehler"
+        }
       }
     },
     "number": {
@@ -89,6 +126,18 @@
       },
       "power_limit": {
         "name": "Ladeleistung-Grenze"
+      },
+      "pv_soc_start": {
+        "name": "PV: Start ab Speicher-SoC"
+      },
+      "pv_soc_stop": {
+        "name": "PV: Stopp unter Speicher-SoC"
+      },
+      "pv_min_switch_interval": {
+        "name": "PV: Mindestabstand Start/Stopp"
+      },
+      "pv_buffer_time": {
+        "name": "PV: Pufferzeit unter 6 A"
       }
     },
     "button": {
@@ -97,6 +146,22 @@
       },
       "pause_charging": {
         "name": "Ladevorgang pausieren"
+      }
+    },
+    "select": {
+      "charge_mode": {
+        "name": "Lademodus",
+        "state": {
+          "pv_surplus": "PV-Überschuss",
+          "immediate": "Sofort",
+          "off": "Aus",
+          "manual": "Manuell"
+        }
+      }
+    },
+    "switch": {
+      "immediate_auto_return": {
+        "name": "Sofort: danach zurück zu PV-Überschuss"
       }
     }
   }
